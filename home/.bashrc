@@ -1,7 +1,5 @@
 # .bashrc
-
-alias cl='claude-launch'
-alias la='ls -a'
+# Aliases live in ~/.bashrc.d/aliases.bashrc (sourced by the loop at the bottom).
 
 # Source global definitions
 if [ -f /etc/bashrc ]; then

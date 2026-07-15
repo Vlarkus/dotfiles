@@ -1,0 +1,29 @@
+# ~/.inputrc — readline settings (bash line editing)
+# NOTE: readline only allows comments on their OWN line, never inline after a directive.
+$include /etc/inputrc
+
+# cmd.exe-style Tab completion: cycle through matches.
+#   Tab       -> next match (inserted inline)
+#   Shift-Tab -> previous match
+TAB: menu-complete
+"\e[Z": menu-complete-backward
+
+# Insert the common prefix first, then start cycling (feels like cmd).
+set menu-complete-display-prefix on
+
+# Case-insensitive completion; treat - and _ as equivalent.
+set completion-ignore-case on
+set completion-map-case on
+
+# Color completions by file type; highlight matched prefix.
+set colored-stats on
+set colored-completion-prefix on
+
+# Mark symlinked dirs with a trailing /.
+set mark-symlinked-directories on
+
+# List options immediately when nothing is typed yet.
+set show-all-if-unmodified on
+
+# No terminal bell on ambiguous completion.
+set bell-style none

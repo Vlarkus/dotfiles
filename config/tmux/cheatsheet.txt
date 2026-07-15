@@ -1,0 +1,35 @@
+
+   +-------------------------------------------------------------------+
+   |   tmux cheat sheet    prefix = Ctrl-a     (press a key, q to quit) |
+   +-------------------------------------------------------------------+
+
+
+   PANES                                 WINDOWS
+   -----                                 -------
+   | -       split right / down          c          new window
+   \ _       full width / height         X          kill window
+   h j k l   focus a pane                Tab        last window
+   H J K L   resize (hold)               C-h / C-l  prev / next window
+   z         zoom pane                   < / >      move window L / R
+   x         kill pane                   M-1..9     jump to window N
+   Space     cycle layouts               ,          rename window
+   { / }     swap panes                             
+   b / @     break / join pane                      
+
+   SESSIONS  (multiple terminals)        COPY / PASTE
+   ------------------------------        ------------
+   s         switch (tree picker)        v          enter copy-mode
+   C-c       new session                 v / y      select / yank
+   R / $     rename session              / / ?      search fwd / back
+   Q         kill session                p          paste
+   ( / )     prev / next session         Esc        quit copy-mode
+   d         detach (keep running)                  
+
+   PERSISTENCE  (survives reboot)        MISC
+   ------------------------------        ----
+   C-s       save all sessions now       r          reload config
+   C-r       restore saved               ?          this help
+             auto-save every 5 min       :          command prompt
+             restore on relaunch         mouse      click/scroll/resize
+
+           press  q  to close

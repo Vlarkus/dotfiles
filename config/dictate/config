@@ -1,0 +1,6 @@
+# Dictation settings — edit here or via `dictate-settings`.
+MODEL=tiny.en       # tiny.en (fastest) | base.en (balanced) | small.en (most accurate)
+THREADS=
+KEY_DELAY=1
+KEY_HOLD=1
+SOUNDS=on

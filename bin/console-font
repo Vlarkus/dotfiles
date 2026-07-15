@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# console-font — pick the Linux virtual-console font (used by ly + every TTY).
+#
+# Why: this panel is 3840x2160 on 15.6" (~282 DPI). The stock 8x16 console font
+# renders ~1.4mm tall = unreadable. A 32px-tall font doubles that.
+#
+#   [Enter] preview live  — only works ON a real TTY (Ctrl+Alt+F3), because
+#                           `setfont` talks to a virtual console, not a pty.
+#   [s]     save          — writes FONT= into /etc/vconsole.conf, which ly and
+#                           every TTY pick up at boot (systemd-vconsole-setup).
+#
+# Needs root for setfont / vconsole.conf — re-execs itself with sudo.
+set -uo pipefail
+export PATH="/usr/bin:/usr/sbin:/usr/local/bin:$PATH"
+
+VCONF=/etc/vconsole.conf
+FONTDIR=/usr/lib/kbd/consolefonts        # Fedora's location (not /usr/share)
+
+if [ "$(id -u)" -ne 0 ]; then exec sudo -- "$0" "$@"; fi
+
+R=$'\e[0m'; HI=$'\e[1;36m'; DIM=$'\e[90m'; OK=$'\e[32m'; YEL=$'\e[33m'; RED=$'\e[31m'
+
+# name | WxH | note        (ordered small -> large)
+FONTS=(
+  "eurlatgr|8x16|Fedora default — the tiny one"
+  "latarcyrheb-sun16|8x16|"
+  "ter-116n|8x16|Terminus"
+  "sun12x22|12x22|"
+  "ter-124n|12x24|Terminus"
+  "ter-128n|14x28|Terminus"
+  "latarcyrheb-sun32|16x32|tall — good for 4K"
+  "ter-132n|16x32|Terminus — crisp"
+  "solar24x32|24x32|WIDEST + tallest — best for your 4K"
+)
+SEL=8                                     # default highlight: solar24x32
+
+exists(){ compgen -G "$FONTDIR/$1.psf*" >/dev/null 2>&1; }
+on_vt(){ [[ "$(tty 2>/dev/null)" =~ ^/dev/tty[0-9]+$ ]]; }
+cur_font(){ grep -E '^\s*FONT=' "$VCONF" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"'\''' ; }
+
+enter(){ printf '\e[?1049h\e[?25l'; }
+restore(){ printf '\e[?25h\e[?1049l'; }
+trap restore EXIT
+render(){ printf '\e[H'; local l; for l in "$@"; do printf '%s\e[K\n' "$l"; done; printf '\e[J'; }
+readkey(){ local k r; IFS= read -rsn1 k; [ "$k" = $'\e' ] && { IFS= read -rsn2 -t 0.005 r; k+="$r"; }; printf '%s' "$k"; }
+
+apply(){
+  local f="$1"
+  exists "$f" || { MSG="${RED}$f not installed${R}"; return; }
+  if on_vt; then
+    setfont "$f" 2>/dev/null && MSG="${OK}applied $f live${R}" || MSG="${RED}setfont failed${R}"
+  else
+    MSG="${YEL}not on a TTY — no live preview. [s] saves it; or run from Ctrl+Alt+F3${R}"
+  fi
+}
+
+save(){
+  local f="$1"
+  exists "$f" || { MSG="${RED}$f not installed${R}"; return; }
+  touch "$VCONF"
+  if grep -qE '^\s*FONT=' "$VCONF"; then
+    sed -i -E "s|^\s*FONT=.*|FONT=\"$f\"|" "$VCONF"
+  else
+    printf 'FONT="%s"\n' "$f" >> "$VCONF"
+  fi
+  MSG="${OK}saved FONT=\"$f\" — ly + all TTYs use it from next boot${R}"
+}
+
+MSG=""
+enter
+while true; do
+  L=( "" "  ${HI}Console font${R}  ${DIM}— used by ly and every TTY${R}" ""
+      "  ${DIM}saved:${R} ${HI}$(cur_font)${R}   ${DIM}screen:${R} 3840x2160 (~282 DPI)" "" )
+  for i in "${!FONTS[@]}"; do
+    IFS='|' read -r name size note <<<"${FONTS[$i]}"
+    miss=""; exists "$name" || miss=" ${RED}(not installed)${R}"
+    cols=""; [ -n "$note" ] && cols=" ${DIM}${note}${R}"
+    if [ "$i" -eq "$SEL" ]; then
+      L+=( "  ${HI}❯ $(printf '%-19s %-6s' "$name" "$size")${R}${cols}${miss}" )
+    else
+      L+=( "    ${DIM}$(printf '%-19s' "$name")${R} $(printf '%-6s' "$size")${cols}${miss}" )
+    fi
+  done
+  L+=( "" "  ${DIM}j/k move · ${HI}Enter${DIM} preview live · ${HI}s${DIM} save (persist) · ${HI}q${DIM} quit${R}" "" )
+  [ -n "$MSG" ] && L+=( "  $MSG" )
+  on_vt || L+=( "  ${DIM}tip: run from a real TTY (Ctrl+Alt+F3) to see it change live${R}" )
+  render "${L[@]}"
+  IFS='|' read -r name _ _ <<<"${FONTS[$SEL]}"
+  case "$(readkey)" in
+    j|J|$'\e[B') SEL=$(( (SEL+1) % ${#FONTS[@]} )); MSG="" ;;
+    k|K|$'\e[A') SEL=$(( (SEL-1+${#FONTS[@]}) % ${#FONTS[@]} )); MSG="" ;;
+    '')  apply "$name" ;;
+    s|S) save  "$name" ;;
+    q|Q|$'\e') break ;;
+  esac
+done
+restore

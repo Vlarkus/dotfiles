@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Audition system sounds so you can pick ones for Claude notifications.
+#
+#   sound-shop                 list all available sounds
+#   sound-shop all             play every sound, announcing each name
+#   sound-shop freedesktop     play only the freedesktop theme
+#   sound-shop ocean           play only the KDE ocean theme
+#   sound-shop <name>          play one sound by name (e.g. sound-shop complete)
+#
+# When you find one you like, tell Claude the name and the category
+# (done / attention / fail) and it'll wire it in.
+
+DIRS=(
+  "$HOME/.claude/sounds"
+  "/usr/share/sounds/freedesktop/stereo"
+  "/usr/share/sounds/ocean/stereo"
+)
+
+theme_name() { case "$1" in *.claude/sounds*) echo custom;; *freedesktop*) echo freedesktop;; *ocean*) echo ocean;; *) basename "$(dirname "$1")";; esac; }
+
+play_one() {
+  local f="$1"
+  printf '  ♪ %-12s %s\n' "[$(theme_name "$f")]" "$(basename "${f%.*}")"
+  paplay "$f" 2>/dev/null
+  sleep 0.4
+}
+
+list_all() {
+  for d in "${DIRS[@]}"; do
+    echo "── $(theme_name "$d") ($d) ──"
+    ls "$d"/*.oga "$d"/*.wav 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.\(oga\|wav\)$//;s/^/    /'
+    echo
+  done
+  echo "Play all:  sound-shop all     |    one:  sound-shop <name>"
+}
+
+case "${1:-}" in
+  ""|list|-l)
+    list_all
+    ;;
+  all)
+    echo "Playing all sounds (Ctrl-C to stop)…"
+    for d in "${DIRS[@]}"; do for f in "$d"/*.oga "$d"/*.wav; do [ -f "$f" ] && play_one "$f"; done; done
+    ;;
+  custom|freedesktop|ocean)
+    for d in "${DIRS[@]}"; do
+      [ "$(theme_name "$d")" = "$1" ] || continue
+      echo "Playing $1 theme…"
+      for f in "$d"/*.oga "$d"/*.wav; do [ -f "$f" ] && play_one "$f"; done
+    done
+    ;;
+  *)
+    found=0
+    for d in "${DIRS[@]}"; do
+      for f in "$d/$1.oga" "$d/$1.wav"; do
+        if [ -f "$f" ]; then play_one "$f"; found=1; fi
+      done
+    done
+    [ "$found" = 0 ] && { echo "No sound named '$1'. Run 'sound-shop' to list."; exit 1; }
+    ;;
+esac

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Alacritty/tmux launcher — always reuse an existing session (no new-session flood).
+#
+#  - No server yet (fresh boot): start it so continuum restores, then attach.
+#  - Prefer "main" if it's free (not attached elsewhere).
+#  - Else attach to the first other free session (spreads terminals across your
+#    restored sessions — nice on multiple monitors).
+#  - If every session is already attached: mirror the most-recently-used one.
+#  - Only create a brand-new "main" if there are literally zero sessions.
+#
+# Want a NEW session on purpose? inside tmux:  prefix C-c
+
+# Ensure a server exists; let continuum restore saved sessions.
+if ! tmux has-session 2>/dev/null; then
+    tmux start-server
+    for _ in $(seq 1 20); do tmux has-session 2>/dev/null && break; sleep 0.25; done
+fi
+
+# Nothing was saved/restored -> first ever session.
+if ! tmux has-session 2>/dev/null; then
+    exec tmux new-session -s main
+fi
+
+# Prefer "main" if it's free.
+if tmux has-session -t main 2>/dev/null && \
+   [ "$(tmux display-message -p -t main '#{session_attached}' 2>/dev/null)" = "0" ]; then
+    exec tmux attach-session -t main
+fi
+
+# First other free (unattached) session.
+free=$(tmux list-sessions -F '#{session_attached} #{session_name}' 2>/dev/null | awk '$1==0{print $2; exit}')
+if [ -n "$free" ]; then
+    exec tmux attach-session -t "$free"
+fi
+
+# All attached -> mirror the most-recently-active session (still no new one).
+recent=$(tmux list-sessions -F '#{session_last_attached} #{session_name}' 2>/dev/null | sort -rn | awk 'NR==1{print $2}')
+exec tmux attach-session -t "${recent:-main}"

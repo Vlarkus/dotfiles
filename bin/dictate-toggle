@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Local dictation via whisper.cpp (self-contained: a binary + a model file).
+# Bound to a KDE global shortcut (Right Ctrl -> F23 via keyd).
+#
+#   2 notes up   = recording (speak as long as you want)
+#   2 notes down = stop -> transcribe the whole take -> type into focused window
+#
+# Presses while transcribing/typing are ignored (no queuing).
+# Debug log: ~/.cache/dictate.log
+
+exec >>"$HOME/.cache/dictate.log" 2>&1
+echo "[$(date '+%F %T')] invoked"
+export PATH="/usr/bin:/usr/local/bin:$HOME/.local/bin:$PATH"
+export YDOTOOL_SOCKET="/run/ydotoold/socket"
+
+# ---- settings (defaults; overridden by ~/.config/dictate/config) ----
+MODEL="base.en"        # tiny.en | base.en | small.en
+THREADS=""             # blank = all cores
+KEY_DELAY=0            # ms between typed keys
+KEY_HOLD=1             # ms each key held
+SOUNDS="on"            # on | off
+CONF="$HOME/.config/dictate/config"
+[ -f "$CONF" ] && . "$CONF"
+[ -n "$THREADS" ] || THREADS="$(nproc)"
+
+WDIR="$HOME/.local/share/whisper.cpp"
+WCLI="$WDIR/build/bin/whisper-cli"
+MODEL_PATH="$WDIR/models/ggml-$MODEL.bin"
+S="$HOME/.local/share/dictation-sounds"
+WAV="$HOME/.cache/dictate.wav"
+RECPID="$HOME/.cache/dictate.recpid"
+LOCK="$HOME/.cache/dictate.lock"
+LISTENING="$HOME/.cache/dictate.listening"
+
+# Busy (still transcribing/typing)? -> ignore silently.
+if [ -s "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
+  echo "  busy -> ignored"; exit 0
+fi
+rm -f "$LOCK"
+
+if [ ! -e "$LISTENING" ]; then
+  # ---------------- START ----------------
+  echo "  -> start recording"
+  touch "$LISTENING"
+  [ "$SOUNDS" = on ] && paplay "$S/dictate-start.wav" 2>/dev/null &
+  rm -f "$WAV"
+  # record mono 16 kHz (whisper's native rate) from the default mic
+  nohup ffmpeg -hide_banner -loglevel error -f pulse -i default -ac 1 -ar 16000 -y "$WAV" >/dev/null 2>&1 &
+  echo $! > "$RECPID"; disown 2>/dev/null
+else
+  # ---------------- STOP -> TRANSCRIBE -> TYPE ----------------
+  echo "  -> stop"
+  rm -f "$LISTENING"
+  echo $$ > "$LOCK"; trap 'rm -f "$LOCK"' EXIT
+  [ "$SOUNDS" = on ] && paplay "$S/dictate-stop.wav" 2>/dev/null &
+
+  # stop the recorder cleanly so the WAV is finalized
+  pid="$(cat "$RECPID" 2>/dev/null)"; rm -f "$RECPID"
+  if [ -n "$pid" ]; then
+    kill -INT "$pid" 2>/dev/null
+    for _ in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  fi
+  [ -s "$WAV" ] || { echo "  no audio captured"; exit 0; }
+
+  # transcribe the whole clip (one coherent result)
+  text="$("$WCLI" -m "$MODEL_PATH" -f "$WAV" -nt -np -l en -t "$THREADS" 2>/dev/null \
+          | tr '\n' ' ' \
+          | sed -E 's/\[[^]]*\]//g; s/\([^)]*\)//g' \
+          | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; s/  */ /g')"
+  echo "  text: ${text:0:100}"
+
+  if [ -n "$text" ]; then
+    ydotool type --key-delay "$KEY_DELAY" --key-hold "$KEY_HOLD" -- "$text"
+    printf '%s\t%s\n' "$(date '+%F %T')" "$text" >> "$HOME/.cache/dictate.history"
+    tail -n 10 "$HOME/.cache/dictate.history" > "$HOME/.cache/dictate.history.tmp" 2>/dev/null \
+      && mv "$HOME/.cache/dictate.history.tmp" "$HOME/.cache/dictate.history"
+  else
+    echo "  empty transcription"
+  fi
+fi

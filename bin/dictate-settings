@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Simple terminal UI for dictation settings (~/.config/dictate/config).
+# Run in any terminal:  dictate-settings
+# Changes apply on your next dictation — no restart needed.
+set -uo pipefail
+export PATH="/usr/bin:/usr/local/bin:$HOME/.local/bin:$PATH"
+
+CONF="$HOME/.config/dictate/config"
+WDIR="$HOME/.local/share/whisper.cpp"
+MDIR="$WDIR/models"
+mkdir -p "$(dirname "$CONF")"
+[ -f "$CONF" ] || cat > "$CONF" <<'EOF'
+MODEL=base.en
+THREADS=
+KEY_DELAY=0
+KEY_HOLD=1
+SOUNDS=on
+EOF
+
+set_kv(){ # key value
+  if grep -q "^$1=" "$CONF" 2>/dev/null; then
+    sed -i "s|^$1=.*|$1=$2|" "$CONF"
+  else
+    printf '%s=%s\n' "$1" "$2" >> "$CONF"
+  fi
+}
+get(){ MODEL=base.en THREADS= KEY_DELAY=0 KEY_HOLD=1 SOUNDS=on; . "$CONF"; }
+
+choose_model(){
+  local opts="" m sel
+  for m in tiny.en base.en small.en medium.en; do
+    if [ -f "$MDIR/ggml-$m.bin" ]; then
+      opts+="$m  [✓ $(ls -lh "$MDIR/ggml-$m.bin" | awk '{print $5}')]"$'\n'
+    else
+      opts+="$m  [ download ]"$'\n'
+    fi
+  done
+  sel="$(printf '%s' "$opts" | fzf --reverse --height=12 --border=rounded \
+        --prompt='model> ' --header='tiny=fastest  base=balanced  small=accurate  (Enter; missing ones download)')" || return
+  m="$(awk '{print $1}' <<<"$sel")"; [ -n "$m" ] || return
+  if [ ! -f "$MDIR/ggml-$m.bin" ]; then
+    echo; echo "  downloading $m ... (one time)"
+    ( cd "$WDIR" && bash models/download-ggml-model.sh "$m" ) >/dev/null 2>&1 \
+      && echo "  done" || { echo "  download failed"; sleep 2; return; }
+  fi
+  set_kv MODEL "$m"
+}
+
+num(){ # prompt current  -> echoes ONLY the new value on stdout
+  local p="$1" cur="$2" v
+  printf '  %s [%s]: ' "$p" "$cur" >&2   # prompt to stderr so $() doesn't capture it
+  read -r v
+  [[ "$v" =~ ^[0-9]+$ ]] && echo "$v" || echo "$cur"
+}
+
+while true; do
+  get
+  clear
+  cat <<EOF
+  ╭───────────────────────────────────────────────╮
+  │   dictation settings   (~/.config/dictate)      │
+  ╰───────────────────────────────────────────────╯
+
+   [m]  model          ${MODEL}
+   [t]  threads        ${THREADS:-all ($(nproc))}
+   [d]  typing delay   ${KEY_DELAY} ms   (between chars)
+   [h]  key hold       ${KEY_HOLD} ms
+   [s]  sounds         ${SOUNDS}
+
+   [v]  test (record 3s, transcribe, show)
+   [e]  edit config file in \$EDITOR
+   [q]  quit
+
+EOF
+  printf '  > '
+  read -rsn1 k; echo
+  case "$k" in
+    m) choose_model ;;
+    t) set_kv THREADS "$(num 'threads (blank=all)' "${THREADS:-}")" ;;
+    d) set_kv KEY_DELAY "$(num 'typing delay ms' "$KEY_DELAY")" ;;
+    h) set_kv KEY_HOLD "$(num 'key hold ms' "$KEY_HOLD")" ;;
+    s) [ "$SOUNDS" = on ] && set_kv SOUNDS off || set_kv SOUNDS on ;;
+    v)
+       echo "  recording 3s — speak now…"
+       ffmpeg -hide_banner -loglevel error -f pulse -i default -ac 1 -ar 16000 -t 3 -y /tmp/dictate-test.wav 2>/dev/null
+       echo -n "  heard: "
+       "$WDIR/build/bin/whisper-cli" -m "$MDIR/ggml-$MODEL.bin" -f /tmp/dictate-test.wav -nt -np -t "${THREADS:-$(nproc)}" 2>/dev/null | tr '\n' ' '
+       echo; read -rp "  [enter] " _
+       ;;
+    e) "${EDITOR:-nvim}" "$CONF" ;;
+    q|$'\e'|'') clear; exit 0 ;;
+  esac
+done

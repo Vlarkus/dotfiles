@@ -1,0 +1,11 @@
+[Unit]
+Description=ydotoold input daemon (root, user-owned socket)
+
+[Service]
+ExecStart=/usr/bin/ydotoold --socket-path=/run/ydotoold/socket --socket-own=1000:1000
+RuntimeDirectory=ydotoold
+RuntimeDirectoryMode=0755
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

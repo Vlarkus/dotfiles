@@ -1,0 +1,25 @@
+# ── never commit secrets / machine state ──────────────────────────────────────
+**/.credentials.json
+**/*credential*
+**/*.pem
+**/*.key
+.env
+
+# ── installed by tooling, not by us ───────────────────────────────────────────
+config/tmux/plugins/          # TPM clones these (prefix + I)
+config/nvim/.netrwhist
+config/nvim/spell/
+# NOTE: config/nvim/lazy-lock.json IS tracked on purpose — it pins plugin versions.
+
+# ── claude runtime data (only settings/statusline/hooks are tracked) ──────────
+claude/projects/
+claude/sessions/
+claude/cache/
+claude/history.jsonl
+claude/settings.local.json    # machine-local overrides
+claude/sounds/                # regenerate: python3 claude/hooks/gen-sounds.py
+
+# ── noise ─────────────────────────────────────────────────────────────────────
+*.swp
+*~
+.DS_Store

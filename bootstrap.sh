@@ -2,14 +2,14 @@
 # bootstrap.sh — the system-level half of this setup (the part dotfiles can't carry).
 #
 # Run AFTER ./install.sh. Targets Fedora (dnf) + KDE Plasma / Wayland.
-# Sections are independent and idempotent — run them all, or pick with flags:
+# Sections are independent and idempotent.
 #
-#   ./bootstrap.sh                  # everything except the optional extras
-#   ./bootstrap.sh pkgs keyd        # only those sections
-#   ./bootstrap.sh --list           # show sections
+#   ./bootstrap.sh                  # 'core' only: bash + tmux + LazyVim
+#   ./bootstrap.sh pkgs keyd kde    # pick specific sections
+#   ./bootstrap.sh --list           # show every section
 #
-# Optional/heavy sections are NOT run by default: whisper (compiles), ly (swaps
-# your login manager). Ask for them explicitly:  ./bootstrap.sh whisper ly
+# Default is deliberately just 'core'. The machine-rebuild sections (dictation,
+# keyd, console font, KDE tweaks, ly, whisper) are all opt-in.
 set -uo pipefail
 
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,10 +17,16 @@ say(){ printf '\n\033[1;36m== %s\033[0m\n' "$*"; }
 ok(){  printf '  \033[32m✓\033[0m %s\n' "$*"; }
 note(){ printf '  \033[33m!\033[0m %s\n' "$*"; }
 
-PKGS=(
-  git gh tmux neovim alacritty jq
-  ripgrep fd-find fzf                 # LazyVim deps
-  fastfetch lazygit                   # ff / lg aliases
+# Just enough for bash + tmux + LazyVim (the stuff that actually matters).
+CORE_PKGS=(
+  git tmux neovim
+  ripgrep fd-find fzf                 # LazyVim needs these to search
+  fastfetch lazygit                   # the `ff` / `lg` aliases
+)
+
+# Everything else, for a full machine rebuild.
+FULL_PKGS=(
+  "${CORE_PKGS[@]}" gh alacritty jq
   keyd ydotool                        # key remap + input injection (dictation)
   ffmpeg-free                         # dictation recording
   gcc-c++ cmake make                  # whisper.cpp build
@@ -28,9 +34,15 @@ PKGS=(
   terminus-fonts-console              # big TTY fonts (4K screens)
 )
 
+sec_core(){
+  say "core: bash + tmux + LazyVim"
+  sudo dnf install -y "${CORE_PKGS[@]}" && ok "core packages installed"
+  sec_tpm
+}
+
 sec_pkgs(){
-  say "packages"
-  sudo dnf install -y "${PKGS[@]}" && ok "packages installed"
+  say "packages (full)"
+  sudo dnf install -y "${FULL_PKGS[@]}" && ok "packages installed"
 }
 
 sec_tpm(){
@@ -117,19 +129,33 @@ sec_ly(){        # optional, swaps the login manager
   note "revert:  sudo systemctl disable ly@tty2.service && sudo systemctl enable <old-dm> -f"
 }
 
-DEFAULT=(pkgs tpm keyd ydotool console kde)
-ALL=(pkgs tpm keyd ydotool console kde whisper ly)
+DEFAULT=(core)
+ALL=(core pkgs tpm keyd ydotool console kde whisper ly)
 
 if [ "${1:-}" = "--list" ]; then
-  printf 'sections: %s\n' "${ALL[*]}"
-  printf 'default : %s\n' "${DEFAULT[*]}"
-  printf 'optional: whisper ly   (compile / swaps login manager)\n'; exit 0
+  cat <<'EOF'
+default:
+  core      bash + tmux + LazyVim  (packages + tmux plugin manager)   <- runs if no args
+
+full machine:
+  pkgs      every package (adds alacritty, gh, jq, dictation, build deps)
+  keyd      Right Ctrl -> F23 remap
+  ydotool   ydotoold service (dictation types text)
+  console   big TTY/ly console font (HiDPI)
+  kde       Caps Lock -> Ctrl, disable mouse edge barrier
+  whisper   build whisper.cpp + models   (compiles, slow)
+  ly        replace login manager with ly TUI
+
+  ./bootstrap.sh                 # core only
+  ./bootstrap.sh pkgs kde        # pick sections
+EOF
+  exit 0
 fi
 
 RUN=("$@"); [ $# -eq 0 ] && RUN=("${DEFAULT[@]}")
 for s in "${RUN[@]}"; do
   case "$s" in
-    pkgs) sec_pkgs ;; tpm) sec_tpm ;; keyd) sec_keyd ;; ydotool) sec_ydotool ;;
+    core) sec_core ;; pkgs) sec_pkgs ;; tpm) sec_tpm ;; keyd) sec_keyd ;; ydotool) sec_ydotool ;;
     console) sec_console ;; kde) sec_kde ;; whisper) sec_whisper ;; ly) sec_ly ;;
     *) note "unknown section: $s" ;;
   esac

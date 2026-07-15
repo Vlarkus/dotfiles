@@ -6,22 +6,16 @@ and a local whisper.cpp dictation pipeline.
 Files live here and are **symlinked** into `$HOME`, so editing the real config
 edits the repo — just `git add -p && git commit`.
 
-## New machine
+## New machine — the short version
+
+Bash + tmux + LazyVim, nothing else:
 
 ```bash
 git clone <this-repo> ~/dotfiles
 cd ~/dotfiles
-./install.sh            # symlink configs into $HOME (backs up anything it replaces)
-./bootstrap.sh          # packages, keyd, ydotoold, console font, KDE settings
-exec bash               # reload shell
-```
-
-Optional (not run by default — one compiles, one swaps your login manager):
-
-```bash
-./bootstrap.sh whisper  # build whisper.cpp + download models (dictation)
-./bootstrap.sh ly       # replace the graphical login with the ly TUI
-./bootstrap.sh --list   # see all sections
+./install.sh core       # symlink bashrc/aliases, tmux, nvim
+./bootstrap.sh          # install git, tmux, neovim, ripgrep/fd/fzf, lazygit, fastfetch + TPM
+exec bash
 ```
 
 Then:
@@ -29,6 +23,18 @@ Then:
 - `tmux` → `prefix + I` → TPM installs resurrect/continuum
 
 `./install.sh --dry` shows what it would do without touching anything.
+
+## Full machine rebuild
+
+Only if you want the rest (alacritty, Claude Code setup, dictation, ly, KDE tweaks):
+
+```bash
+./install.sh            # symlink everything
+./bootstrap.sh --list   # see all sections
+./bootstrap.sh pkgs keyd ydotool console kde
+./bootstrap.sh whisper  # build whisper.cpp + models (slow)
+./bootstrap.sh ly       # swap the login manager for the ly TUI
+```
 
 ## What's here
 

@@ -4,14 +4,21 @@
 # Safe to re-run. Anything it would overwrite is moved to ~/.dotfiles-backup/<timestamp>/
 # first, so this can never silently eat an existing config.
 #
-#   ./install.sh          symlink everything
+#   ./install.sh core     bash + tmux + LazyVim only   <- the stuff that matters
+#   ./install.sh          everything (adds alacritty, claude, dictation configs)
 #   ./install.sh --dry    show what it would do, change nothing
 #
-# After this, run ./bootstrap.sh for the system-level parts (packages, keyd, etc).
+# Then: ./bootstrap.sh  (installs tmux/nvim/deps). Extras are opt-in there too.
 set -uo pipefail
 
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DRY=0; [ "${1:-}" = "--dry" ] && DRY=1
+DRY=0; CORE=0
+for a in "$@"; do
+  case "$a" in
+    --dry) DRY=1 ;;
+    core)  CORE=1 ;;
+  esac
+done
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP="$HOME/.dotfiles-backup/$STAMP"
 n_link=0; n_same=0; n_back=0
@@ -43,10 +50,19 @@ link home/.bashrc                  .bashrc
 link home/.inputrc                 .inputrc
 link home/.bashrc.d/aliases.bashrc .bashrc.d/aliases.bashrc
 
-echo "== editor / terminal / tmux =="
-link config/nvim                     .config/nvim
-link config/tmux/tmux.conf           .config/tmux/tmux.conf
-link config/tmux/cheatsheet.txt      .config/tmux/cheatsheet.txt
+echo "== nvim (LazyVim) + tmux =="
+link config/nvim                .config/nvim
+link config/tmux/tmux.conf      .config/tmux/tmux.conf
+link config/tmux/cheatsheet.txt .config/tmux/cheatsheet.txt
+
+if [ "$CORE" = 1 ]; then
+  echo
+  echo "core mode: bash + tmux + LazyVim only."
+  echo "(skipped alacritty / claude / dictation — run without 'core' to link those too)"
+  exit 0
+fi
+
+echo "== terminal / dictation =="
 link config/alacritty/alacritty.toml .config/alacritty/alacritty.toml
 link config/dictate/config           .config/dictate/config
 

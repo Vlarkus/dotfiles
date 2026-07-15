@@ -1,22 +1,36 @@
 # dotfiles
 
-Fedora + KDE Plasma (Wayland) setup: bash, LazyVim, tmux, Alacritty, Claude Code,
-and a local whisper.cpp dictation pipeline.
+bash, LazyVim, tmux, Alacritty, Claude Code, and a local whisper.cpp dictation
+pipeline. Built on Fedora + KDE Plasma (Wayland); `bootstrap.sh` also supports
+**Ubuntu/Debian**.
 
 Files live here and are **symlinked** into `$HOME`, so editing the real config
 edits the repo — just `git add -p && git commit`.
 
 ## New machine — the short version
 
-Bash + tmux + LazyVim, nothing else:
+Bash + tmux + LazyVim, nothing else. Works on **Fedora** and **Ubuntu/Debian**:
 
 ```bash
 git clone <this-repo> ~/dotfiles
 cd ~/dotfiles
 ./install.sh core       # symlink bashrc/aliases, tmux, nvim
-./bootstrap.sh          # install git, tmux, neovim, ripgrep/fd/fzf, lazygit, fastfetch + TPM
+./bootstrap.sh          # git, tmux, neovim, ripgrep/fd/fzf, lazygit, fastfetch + TPM
 exec bash
 ```
+
+`bootstrap.sh` detects the distro and papers over the differences:
+
+| | Fedora | Ubuntu/Debian |
+|---|---|---|
+| packages | `dnf` | `apt` |
+| **neovim** | repo is current | apt's is often too old for LazyVim (needs **≥ 0.11.2**) → falls back to `ppa:neovim-ppa/unstable`, then to the official static build |
+| **lazygit** | in repo | not in apt → `ppa:lazygit-team/release`, then the GitHub release binary |
+| **fastfetch** | in repo | apt/universe → `ppa:zhangsongcui3371/fastfetch` |
+| **fd** | `fd` | binary is `fdfind` → symlinked to `fd` so LazyVim finds it |
+| console font | `/etc/vconsole.conf` | `/etc/default/console-setup` + `setupcon` |
+| `keyd` | in repo | not packaged → built from source |
+| `ly` | in repo | not packaged → skipped |
 
 Then:
 - `nvim` → LazyVim installs plugins from `lazy-lock.json` (exact pinned versions)

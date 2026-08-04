@@ -65,6 +65,10 @@ fi
 echo "== terminal / dictation =="
 link config/alacritty/alacritty.toml .config/alacritty/alacritty.toml
 link config/dictate/config           .config/dictate/config
+# Ptyxis (GNOME/Ubuntu default terminal): same Catppuccin Mocha colours as
+# alacritty.toml. Harmless on machines without Ptyxis — it's just a file.
+link config/ptyxis/Catppuccin-Mocha-Dotfiles.palette \
+     .local/share/org.gnome.Ptyxis/palettes/Catppuccin-Mocha-Dotfiles.palette
 
 echo "== scripts =="
 for s in claude-launch console-font dictate-settings dictate-toggle sound-shop tmux-attach; do

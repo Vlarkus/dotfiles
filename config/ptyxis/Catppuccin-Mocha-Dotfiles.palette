@@ -1,0 +1,36 @@
+[Palette]
+Name=Catppuccin-Mocha-Dotfiles
+
+# Ptyxis (GNOME/Ubuntu terminal) equivalent of the [colors.*] block in
+# config/alacritty/alacritty.toml, so both terminals look identical.
+#
+# Ptyxis ships a stock "Catppuccin Mocha" whose 16 colors already match ours
+# exactly; the only reason this file exists is Cursor — stock uses the
+# foreground (#CDD6F4), while alacritty.toml uses rosewater (#F5E0DC).
+#
+# Ptyxis has no key for a selection color, so [colors.selection] has no
+# equivalent here and is dropped.
+
+Background=#1E1E2E
+Foreground=#CDD6F4
+Cursor=#F5E0DC
+
+# colors.normal
+Color0=#45475A
+Color1=#F38BA8
+Color2=#A6E3A1
+Color3=#F9E2AF
+Color4=#89B4FA
+Color5=#F5C2E7
+Color6=#94E2D5
+Color7=#BAC2DE
+
+# colors.bright
+Color8=#585B70
+Color9=#F38BA8
+Color10=#A6E3A1
+Color11=#F9E2AF
+Color12=#89B4FA
+Color13=#F5C2E7
+Color14=#94E2D5
+Color15=#A6ADC8

@@ -80,7 +80,7 @@ link config/ptyxis/Catppuccin-Mocha-Dotfiles.palette \
      .local/share/org.gnome.Ptyxis/palettes/Catppuccin-Mocha-Dotfiles.palette
 
 echo "== scripts =="
-for s in claude-launch console-font dictate-settings dictate-toggle sound-shop tmux-attach; do
+for s in console-font dictate-settings dictate-toggle tmux-attach; do
   link "bin/$s" ".local/bin/$s"
 done
 [ "$DRY" = 0 ] && chmod +x "$D"/bin/* 2>/dev/null
@@ -104,6 +104,6 @@ Next:
   1. ./bootstrap.sh              # packages + keyd + ydotoold + fonts + KDE
   2. exec bash                   # reload shell
   3. nvim                        # LazyVim installs plugins from lazy-lock.json
-  4. tmux, then prefix + I       # TPM installs tmux plugins
+  4. tmux                        # resurrect/continuum load automatically
 EOF
 fi

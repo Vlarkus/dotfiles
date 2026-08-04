@@ -40,7 +40,7 @@ no longer trigger on a current Ubuntu.
 
 Then:
 - `nvim` → LazyVim installs plugins from `lazy-lock.json` (exact pinned versions)
-- `tmux` → `prefix + I` → TPM installs resurrect/continuum
+- `tmux` → resurrect/continuum are cloned by `bootstrap.sh` and load via `run-shell`
 
 `./install.sh --dry` shows what it would do without touching anything.
 
@@ -60,7 +60,7 @@ Only if you want the rest (alacritty, Claude Code setup, dictation, ly, KDE twea
 
 | Path | Goes to | What |
 |---|---|---|
-| `home/.bashrc` | `~/.bashrc` | shell + `cl` launcher alias |
+| `home/.bashrc` | `~/.bashrc` | shell, PATH, `~/.bashrc.d/*` loader |
 | `home/.bashrc.d/aliases.bashrc` | `~/.bashrc.d/` | aliases (`v` `ff` `lg` `ds` `cf` …) |
 | `home/.inputrc` | `~/.inputrc` | cmd-style Tab completion cycling |
 | `config/nvim/` | `~/.config/nvim` | LazyVim |
@@ -68,7 +68,7 @@ Only if you want the rest (alacritty, Claude Code setup, dictation, ly, KDE twea
 | `config/alacritty/` | `~/.config/alacritty/` | terminal (JetBrainsMono NF, Catppuccin) |
 | `config/ptyxis/` | `~/.local/share/org.gnome.Ptyxis/palettes/` | same Catppuccin Mocha colours for GNOME's Ptyxis (`bootstrap.sh kde` selects it) |
 | `config/dictate/config` | `~/.config/dictate/` | whisper model / typing speed |
-| `bin/` | `~/.local/bin/` | `claude-launch` `console-font` `dictate-*` `sound-shop` `tmux-attach` |
+| `bin/` | `~/.local/bin/` | `console-font` `dictate-*` `tmux-attach` |
 | `claude/` | `~/.claude/` | settings, statusline, notification hooks |
 | `system/` | (reference) | keyd, ydotoold, vconsole — applied by `bootstrap.sh` |
 
@@ -78,7 +78,9 @@ history, caches, tmux plugins, nvim plugin binaries, and `uv`/`uvx`/`claude`
 
 ## Custom bits worth knowing
 
-- **`cl`** — TUI launcher for Claude Code (new session w/ model+permission options, or resume by name).
+- **`cl`** — Claude Code launcher TUI. Lives in its own repo now
+  (github.com/Vlarkus/claude-launcher); clone it and run `./install.sh` there.
+  Deliberately *not* aliased here, so nothing shadows its shim.
 - **`cf`** — console-font picker. This panel is 4K/15.6" (~282 DPI) so the stock
   8×16 TTY font is unreadable; `vconsole.conf` sets `latarcyrheb-sun32`.
 - **Dictation** — Right Ctrl (remapped to F23 by keyd) toggles `dictate-toggle`:

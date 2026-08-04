@@ -20,7 +20,7 @@
 # so it can't be caught here. Prose questions (turn ends with "?") are caught via
 # the Stop hook's last_assistant_message.
 #
-# To change a sound: audition with `sound-shop`, then edit the SND_* paths below.
+# To change a sound: edit the SND_* paths below (files live in ~/.claude/sounds).
 
 kind="${1:-attention}"
 input="$(cat)"
@@ -72,7 +72,7 @@ fi
 
 SND="$HOME/.claude/sounds"
 
-# ── Sound choices per category (change these after shopping with `sound-shop`) ──
+# ── Sound choices per category ──
 # Custom synthesized cues live in ~/.claude/sounds (regenerate: gen-sounds.py).
 SND_DONE="$SND/done-marimba.wav"
 SND_ATTENTION="$SND/attn-marimba3.wav"

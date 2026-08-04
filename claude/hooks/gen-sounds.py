@@ -2,7 +2,7 @@
 """Synthesize custom notification cues (pure beeps + instrument-style tones).
 
 Writes .wav files into ~/.claude/sounds/. Re-run after editing to regenerate.
-No dependencies — pure Python stdlib. Audition with `sound-shop`.
+No dependencies — pure Python stdlib.
 """
 import wave, struct, math, os
 
@@ -85,4 +85,4 @@ write("fail-marimba",  seq(note(N["G4"], .14, "marimba"),  note(N["C4"], .34, "m
 write("fail-bell",     seq(note(N["A3"], 1.0, "bell")))
 write("fail-buzz",     seq(note(N["C4"], .10, "beep"),     note(N["A3"], .28, "beep")))
 
-print("done. audition with:  sound-shop all   (or sound-shop <name>)")
+print(f"done. {len(os.listdir(OUT))} files in {OUT}")

@@ -24,13 +24,19 @@ exec bash
 | | Fedora | Ubuntu/Debian |
 |---|---|---|
 | packages | `dnf` | `apt` |
-| **neovim** | repo is current | apt's is often too old for LazyVim (needs **≥ 0.11.2**) → falls back to `ppa:neovim-ppa/unstable`, then to the official static build |
-| **lazygit** | in repo | not in apt → `ppa:lazygit-team/release`, then the GitHub release binary |
-| **fastfetch** | in repo | apt/universe → `ppa:zhangsongcui3371/fastfetch` |
+| **neovim** | repo is current | **Ubuntu 24.04 and older**: apt's is too old for LazyVim (needs **≥ 0.11.2**) → falls back to `ppa:neovim-ppa/unstable`, then the official static build. **Ubuntu 25.10+ ships 0.11.6 in plain apt** — no PPA needed. |
+| **lazygit** | in repo | **24.04 and older**: not in apt → `ppa:lazygit-team/release`, then the GitHub release binary. **25.10+: in plain apt.** |
+| **fastfetch** | in repo | **24.04 and older**: `ppa:zhangsongcui3371/fastfetch`. **25.10+: in plain apt.** |
 | **fd** | `fd` | binary is `fdfind` → symlinked to `fd` so LazyVim finds it |
+| **7-zip** | `p7zip` | package is `7zip` (`p7zip-full` is gone on 25.10+) |
 | console font | `/etc/vconsole.conf` | `/etc/default/console-setup` + `setupcon` |
+| Caps→Ctrl | KDE `kxkbrc` | GNOME `gsettings` + `/etc/default/keyboard` for the TTY |
+| terminal | Alacritty | Alacritty, or Ptyxis (GNOME default since 25.10) — same palette either way |
 | `keyd` | in repo | not packaged → built from source |
 | `ly` | in repo | not packaged → skipped |
+
+The PPA fallbacks are still there and still correct for older releases — they just
+no longer trigger on a current Ubuntu.
 
 Then:
 - `nvim` → LazyVim installs plugins from `lazy-lock.json` (exact pinned versions)
@@ -60,6 +66,7 @@ Only if you want the rest (alacritty, Claude Code setup, dictation, ly, KDE twea
 | `config/nvim/` | `~/.config/nvim` | LazyVim |
 | `config/tmux/` | `~/.config/tmux/` | tmux.conf (prefix `C-a`) + cheatsheet (`prefix ?`) |
 | `config/alacritty/` | `~/.config/alacritty/` | terminal (JetBrainsMono NF, Catppuccin) |
+| `config/ptyxis/` | `~/.local/share/org.gnome.Ptyxis/palettes/` | same Catppuccin Mocha colours for GNOME's Ptyxis (`bootstrap.sh kde` selects it) |
 | `config/dictate/config` | `~/.config/dictate/` | whisper model / typing speed |
 | `bin/` | `~/.local/bin/` | `claude-launch` `console-font` `dictate-*` `sound-shop` `tmux-attach` |
 | `claude/` | `~/.claude/` | settings, statusline, notification hooks |

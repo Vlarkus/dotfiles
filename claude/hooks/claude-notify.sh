@@ -78,10 +78,18 @@ SND_DONE="$SND/done-marimba.wav"
 SND_ATTENTION="$SND/attn-marimba3.wav"
 SND_FAIL="$SND/fail-marimba.wav"
 
+# "Done" icon: Breeze (KDE) ships dialog-positive (green check); Adwaita (GNOME)
+# does not, and an unknown name renders as a blank/broken icon. dialog-warning
+# and dialog-error exist in both themes.
+case "${XDG_CURRENT_DESKTOP:-}" in
+  *KDE*|*Plasma*) ICON_DONE="dialog-positive" ;;
+  *)              ICON_DONE="dialog-information" ;;
+esac
+
 case "$kind" in
   done)
     title="🟢 Claude finished"
-    icon="dialog-positive"
+    icon="$ICON_DONE"
     sound="$SND_DONE"
     ;;
   fail)
@@ -102,7 +110,16 @@ body="$label"
 # Visual: temporary desktop notification (normal urgency -> auto-dismisses)
 notify-send -a "Claude Code" -u normal -i "$icon" "$title" "$body" 2>/dev/null
 
-# Audio
-[ -f "$sound" ] && paplay "$sound" 2>/dev/null
+# Audio — paplay is pulseaudio-utils (Fedora/KDE); a stock PipeWire Ubuntu box
+# has pw-play instead and no paplay at all. Take whichever exists.
+play_sound(){
+  local f="$1"
+  [ -f "$f" ] || return 0
+  if   command -v paplay  >/dev/null 2>&1; then paplay  "$f" 2>/dev/null
+  elif command -v pw-play >/dev/null 2>&1; then pw-play "$f" 2>/dev/null
+  elif command -v aplay   >/dev/null 2>&1; then aplay -q "$f" 2>/dev/null
+  fi
+}
+play_sound "$sound"
 
 exit 0

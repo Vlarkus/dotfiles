@@ -134,6 +134,20 @@ ensure_fd(){
   fi
 }
 
+# nvim-treesitter wants the tree-sitter CLI on PATH. Mason installs it, but into
+# its own bin dir which is not on PATH, so `:checkhealth lazyvim` reports it
+# missing. Link it if Mason has already fetched it (i.e. after nvim's first run).
+ensure_treesitter(){
+  have tree-sitter && return
+  local m="$HOME/.local/share/nvim/mason/bin/tree-sitter"
+  if [ -x "$m" ]; then
+    mkdir -p "$HOME/.local/bin"; ln -sfn "$m" "$HOME/.local/bin/tree-sitter"
+    ok "linked mason's tree-sitter -> ~/.local/bin"
+  else
+    note "tree-sitter CLI not found — run nvim once, then re-run this section"
+  fi
+}
+
 # ── sections ─────────────────────────────────────────────────────────────────
 sec_core(){
   say "core: bash + tmux + LazyVim  [$ID ${VERSION_ID:-} / $FAMILY]"
@@ -142,17 +156,29 @@ sec_core(){
   pm_install "${arr[@]}" && ok "core packages"
   ensure_nvim
   ensure_fd
+  ensure_treesitter
   ensure_lazygit
   ensure_fastfetch
   sec_tpm
 }
 
 sec_tpm(){
-  say "tmux plugin manager"
-  local t="$HOME/.config/tmux/plugins/tpm"
-  if [ -d "$t" ]; then ok "tpm already present"
-  else git clone -q https://github.com/tmux-plugins/tpm "$t" && ok "tpm cloned"; fi
-  note "open tmux, then press: prefix + I   (installs resurrect/continuum)"
+  say "tmux plugins"
+  # tmux.conf does NOT use TPM: it run-shell's resurrect.tmux and continuum.tmux
+  # from these paths directly, so `prefix + I` would install nothing. Clone them
+  # ourselves. TPM is still fetched so `prefix + I` works if plugins are ever
+  # declared the normal way later.
+  local d="$HOME/.config/tmux/plugins"
+  mkdir -p "$d"
+  local repo name
+  for repo in tmux-plugins/tpm \
+              tmux-plugins/tmux-resurrect \
+              tmux-plugins/tmux-continuum; do
+    name="${repo#*/}"
+    if [ -d "$d/$name/.git" ]; then ok "$name already present"
+    else git clone -q --depth 1 "https://github.com/$repo" "$d/$name" && ok "$name cloned"; fi
+  done
+  note "resurrect/continuum load via run-shell in tmux.conf — no prefix+I needed"
 }
 
 sec_pkgs(){
@@ -226,17 +252,55 @@ sec_console(){
 }
 
 sec_kde(){
-  say "KDE settings"
-  if ! have kwriteconfig6; then note "KDE Plasma 6 not detected — skipping"; return; fi
-  kwriteconfig6 --file kxkbrc --group Layout --key Options "ctrl:nocaps"
-  kwriteconfig6 --file kxkbrc --group Layout --key ResetOldOptions "true"
-  ok "Caps Lock -> Ctrl"
-  kwriteconfig6 --file kwinrc --group EdgeBarrier --key EdgeBarrier 0
-  kwriteconfig6 --file kwinrc --group EdgeBarrier --key CornerBarrier false
-  ok "mouse edge barrier disabled"
-  qdbus6 org.kde.KWin /KWin reconfigure 2>/dev/null
+  say "desktop settings"
+  # Caps Lock -> Ctrl is wanted on every machine, but each desktop stores it
+  # somewhere different. Do whichever applies; a machine with neither still
+  # gets the TTY setting below.
+  local done_any=0
+
+  if have kwriteconfig6; then
+    kwriteconfig6 --file kxkbrc --group Layout --key Options "ctrl:nocaps"
+    kwriteconfig6 --file kxkbrc --group Layout --key ResetOldOptions "true"
+    ok "KDE: Caps Lock -> Ctrl"
+    kwriteconfig6 --file kwinrc --group EdgeBarrier --key EdgeBarrier 0
+    kwriteconfig6 --file kwinrc --group EdgeBarrier --key CornerBarrier false
+    ok "KDE: mouse edge barrier disabled"
+    qdbus6 org.kde.KWin /KWin reconfigure 2>/dev/null
+    done_any=1
+  fi
+
+  if have gsettings && gsettings list-schemas 2>/dev/null | grep -q '^org.gnome.desktop.input-sources$'; then
+    gsettings set org.gnome.desktop.input-sources xkb-options "['ctrl:nocaps']"
+    ok "GNOME: Caps Lock -> Ctrl"
+    done_any=1
+  fi
+
+  [ "$done_any" = 0 ] && note "no KDE or GNOME detected — desktop keymap skipped"
+
+  # TTY consoles are separate from the desktop session on every distro.
+  if [ -f /etc/default/keyboard ]; then                       # debian/ubuntu
+    sudo sed -i 's/^XKBOPTIONS=.*/XKBOPTIONS="ctrl:nocaps"/' /etc/default/keyboard
+    grep -q '^XKBOPTIONS=' /etc/default/keyboard || \
+      echo 'XKBOPTIONS="ctrl:nocaps"' | sudo tee -a /etc/default/keyboard >/dev/null
+    sudo setupcon --force 2>/dev/null
+    ok "TTY: Caps Lock -> Ctrl (/etc/default/keyboard)"
+  elif have localectl; then                                   # fedora
+    sudo localectl set-x11-keymap "$(localectl status | awk '/X11 Layout/{print $3}' || echo us)" "" "" ctrl:nocaps
+    ok "TTY: Caps Lock -> Ctrl (localectl)"
+  fi
+
+  # Ptyxis (GNOME/Ubuntu terminal) — point it at the palette install.sh linked.
+  if have gsettings && gsettings list-schemas 2>/dev/null | grep -q '^org.gnome.Ptyxis$'; then
+    local uuid; uuid="$(gsettings get org.gnome.Ptyxis default-profile-uuid 2>/dev/null | tr -d "'")"
+    if [ -n "$uuid" ]; then
+      gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$uuid/" \
+        palette 'Catppuccin-Mocha-Dotfiles' 2>/dev/null && ok "Ptyxis: Catppuccin Mocha palette"
+    fi
+  fi
+
   note "dictation hotkey (F23) must be bound by hand:"
-  note "  System Settings > Keyboard > Shortcuts > custom > command: dictate-toggle > key: Right Ctrl"
+  note "  KDE:   System Settings > Keyboard > Shortcuts > custom > command: dictate-toggle"
+  note "  GNOME: Settings > Keyboard > Custom Shortcuts > command: dictate-toggle"
 }
 
 sec_whisper(){
@@ -288,7 +352,8 @@ full machine:
   keyd      Right Ctrl -> F23 remap        (built from source on ubuntu)
   ydotool   ydotoold service (dictation types text)
   console   big TTY console font (HiDPI)
-  kde       Caps Lock -> Ctrl, disable mouse edge barrier  (skipped if no KDE)
+  kde       Caps Lock -> Ctrl (KDE + GNOME + TTY), Ptyxis palette,
+            disable KDE mouse edge barrier
   whisper   build whisper.cpp + models     (compiles, slow)
   ly        ly TUI login manager           (fedora only)
 

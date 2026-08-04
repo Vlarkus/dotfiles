@@ -63,7 +63,16 @@ if [ "$CORE" = 1 ]; then
 fi
 
 echo "== terminal / dictation =="
-link config/alacritty/alacritty.toml .config/alacritty/alacritty.toml
+# Alacritty isn't on every machine, and isn't packaged the same everywhere.
+# Only link its config where the binary exists, so a box that uses the distro's
+# own terminal doesn't collect a config for something it can't run.
+# Force it on with:  ALACRITTY=1 ./install.sh   (e.g. installing it later)
+if [ "${ALACRITTY:-}" = 1 ] || command -v alacritty >/dev/null 2>&1; then
+  link config/alacritty/alacritty.toml .config/alacritty/alacritty.toml
+else
+  echo "  skip (alacritty not installed): .config/alacritty/alacritty.toml"
+  echo "    -> ALACRITTY=1 ./install.sh   to link it anyway"
+fi
 link config/dictate/config           .config/dictate/config
 # Ptyxis (GNOME/Ubuntu default terminal): same Catppuccin Mocha colours as
 # alacritty.toml. Harmless on machines without Ptyxis — it's just a file.

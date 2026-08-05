@@ -92,3 +92,6 @@ if [ -d ~/.bashrc.d ]; then
   done
 fi
 unset rc
+
+# opencode
+export PATH=/home/vlarkus/.opencode/bin:$PATH

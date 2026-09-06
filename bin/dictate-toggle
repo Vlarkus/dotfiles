@@ -14,17 +14,24 @@ export PATH="/usr/bin:/usr/local/bin:$HOME/.local/bin:$PATH"
 export YDOTOOL_SOCKET="/run/ydotoold/socket"
 
 # ---- settings (defaults; overridden by ~/.config/dictate/config) ----
-MODEL="base.en"        # tiny.en | base.en | small.en
+MODEL="base.en"        # tiny.en/base.en/small.en = English-only; small/medium/large-v3-turbo = multilingual
+WLANG="auto"           # auto = detect per clip (EN+RU); or force e.g. en / ru
 THREADS=""             # blank = all cores
 KEY_DELAY=0            # ms between typed keys
 KEY_HOLD=1             # ms each key held
 SOUNDS="on"            # on | off
+MIC=""                 # pulse source to record from; blank = system default
 CONF="$HOME/.config/dictate/config"
 [ -f "$CONF" ] && . "$CONF"
 [ -n "$THREADS" ] || THREADS="$(nproc)"
 
 WDIR="$HOME/.local/share/whisper.cpp"
-WCLI="$WDIR/build/bin/whisper-cli"
+# Prefer the Vulkan (GPU) build; fall back to the CPU build if it's ever missing.
+WCLI="$WDIR/build-vulkan/bin/whisper-cli"
+[ -x "$WCLI" ] || WCLI="$WDIR/build/bin/whisper-cli"
+# Pin the Iris Xe iGPU (Vulkan device 0). Benchmarked ~2x faster than the DG1(1)
+# here, since the DG1 has non-unified memory and pays a PCIe copy per op.
+export GGML_VK_VISIBLE_DEVICES="${GPU_DEVICE:-0}"
 MODEL_PATH="$WDIR/models/ggml-$MODEL.bin"
 S="$HOME/.local/share/dictation-sounds"
 WAV="$HOME/.cache/dictate.wav"
@@ -44,8 +51,8 @@ if [ ! -e "$LISTENING" ]; then
   touch "$LISTENING"
   [ "$SOUNDS" = on ] && paplay "$S/dictate-start.wav" 2>/dev/null &
   rm -f "$WAV"
-  # record mono 16 kHz (whisper's native rate) from the default mic
-  nohup ffmpeg -hide_banner -loglevel error -f pulse -i default -ac 1 -ar 16000 -y "$WAV" >/dev/null 2>&1 &
+  # record mono 16 kHz (whisper's native rate); MIC blank = system default source
+  nohup ffmpeg -hide_banner -loglevel error -f pulse -i "${MIC:-default}" -ac 1 -ar 16000 -y "$WAV" >/dev/null 2>&1 &
   echo $! > "$RECPID"; disown 2>/dev/null
 else
   # ---------------- STOP -> TRANSCRIBE -> TYPE ----------------
@@ -62,8 +69,18 @@ else
   fi
   [ -s "$WAV" ] || { echo "  no audio captured"; exit 0; }
 
+  # Silence gate: a dead/muted mic records digital silence, and whisper then
+  # hallucinates a filler word ("you", "Thank you."). Reject near-silent takes
+  # so we type nothing instead of garbage. Real speech peaks well above -50 dB.
+  maxvol="$(ffmpeg -hide_banner -i "$WAV" -af volumedetect -f null - 2>&1 \
+            | grep -oE 'max_volume: -?[0-9.]+' | grep -oE '\-?[0-9.]+' | head -1)"
+  if [ -n "$maxvol" ] && awk -v m="$maxvol" 'BEGIN{exit !(m < -50)}'; then
+    echo "  near-silent (max ${maxvol} dB) -> skipped. Check mic: pactl get-default-source"
+    exit 0
+  fi
+
   # transcribe the whole clip (one coherent result)
-  text="$("$WCLI" -m "$MODEL_PATH" -f "$WAV" -nt -np -l en -t "$THREADS" 2>/dev/null \
+  text="$("$WCLI" -m "$MODEL_PATH" -f "$WAV" -nt -np -l "$WLANG" -t "$THREADS" 2>/dev/null \
           | tr '\n' ' ' \
           | sed -E 's/\[[^]]*\]//g; s/\([^)]*\)//g' \
           | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; s/  */ /g')"

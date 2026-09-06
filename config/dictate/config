@@ -1,5 +1,9 @@
 # Dictation settings — edit here or via `dictate-settings`.
-MODEL=tiny.en       # tiny.en (fastest) | base.en (balanced) | small.en (most accurate)
+# English-only: tiny.en/base.en/small.en   Multilingual (EN+RU): small/medium/large-v3-turbo
+# Runs on the Iris Xe GPU (Vulkan). Speed for an ~11s clip on this machine:
+#   large-v3-turbo: ~11.5s auto / ~6.8s fixed-lang   |   small: ~5.4s auto / ~2.2s fixed-lang
+MODEL=large-v3-turbo   # best EN+RU quality; use 'small' if you want it ~2x snappier
+WLANG=auto             # auto = detect EN vs RU per clip; set 'en' or 'ru' to ~halve the time
 THREADS=
 KEY_DELAY=1
 KEY_HOLD=1

@@ -1,35 +1,38 @@
 
-   +-------------------------------------------------------------------+
-   |   tmux cheat sheet    prefix = Ctrl-a     (press a key, q to quit) |
-   +-------------------------------------------------------------------+
+   [1;33mtmux cheat sheet[0m      prefix = [1;36m Ctrl-a [0m   press prefix, then a key        [90mq quits[0m
 
+   [1;35mPANES ──────────────────────────────────────────────────────────────[0m
+     [1;36m|      [0m split right                 [1;36mh j k l  [0m move focus  ← ↓ ↑ →
+     [1;36m-      [0m split down                  [1;36mH J K L  [0m resize (hold to repeat)
+     [1;36m\      [0m split right, full height    [1;36mz        [0m zoom / unzoom
+     [1;36m_      [0m split down, full width      [1;36mx        [0m close pane
+     [1;36mSpace  [0m cycle layouts               [1;36m{  }     [0m swap with prev / next
+     [1;36mb      [0m break pane to a window      [1;36m@        [0m join another pane here
+     [1;36me      [0m sync typing to all panes    [1;36mq        [0m show pane numbers
 
-   PANES                                 WINDOWS
-   -----                                 -------
-   | -       split right / down          c          new window
-   \ _       full width / height         X          kill window
-   h j k l   focus a pane                Tab        last window
-   H J K L   resize (hold)               C-h / C-l  prev / next window
-   z         zoom pane                   < / >      move window L / R
-   x         kill pane                   M-1..9     jump to window N
-   Space     cycle layouts               ,          rename window
-   { / }     swap panes                             
-   b / @     break / join pane                      
+   [1;35mWINDOWS   (tabs along the top) ────────────────────────────────────────────[0m
+     [1;36mc      [0m new window                  [1;36mAlt-1..9 [0m jump to window N (no prefix)
+     [1;36mTab    [0m last window                 [1;36mC-h C-l  [0m previous / next window
+     [1;36m,      [0m rename window               [1;36m<   >    [0m move window left / right
+     [1;36mX      [0m close window (asks first)
 
-   SESSIONS  (multiple terminals)        COPY / PASTE
-   ------------------------------        ------------
-   s         switch (tree picker)        v          enter copy-mode
-   C-c       new session                 v / y      select / yank
-   R / $     rename session              / / ?      search fwd / back
-   Q         kill session                p          paste
-   ( / )     prev / next session         Esc        quit copy-mode
-   d         detach (keep running)                  
+   [1;35mSESSIONS   (projects / separate terminals) ──────────────────────────────[0m
+     [1;36ms      [0m pick session/window tree    [1;36m(   )    [0m previous / next session
+     [1;36mC-c    [0m new session                 [1;36md        [0m detach (keeps running)
+     [1;36mR      [0m rename session              [1;36mQ        [0m kill session (asks first)
 
-   PERSISTENCE  (survives reboot)        MISC
-   ------------------------------        ----
-   C-s       save all sessions now       r          reload config
-   C-r       restore saved               ?          this help
-             auto-save every 5 min       :          command prompt
-             restore on relaunch         mouse      click/scroll/resize
+   [1;35mCOPY & SCROLL ────────────────────────────────────────────────────[0m
+     [1;36mv      [0m enter copy mode  —  then, with NO prefix:
+        [1;36mv[0m start selection    [1;36my[0m / [1;36mEnter[0m copy    [1;36m/[0m [1;36m?[0m search    [1;36mEsc[0m leave
+     [1;36mp      [0m paste last copy
+     [1;36mmouse  [0m wheel scrolls · drag selects & copies
 
-           press  q  to close
+   [1;35mSURVIVES REBOOT / QUIT ────────────────────────────────────────────[0m
+     [1;36mC-s    [0m save all sessions now       [1;36m         [0m auto-saves every 5 min
+     [1;36mC-r    [0m restore saved sessions      [1;36m         [0m auto-restores on tmux start
+
+   [1;35mMISC ──────────────────────────────────────────────────────────────[0m
+     [1;36mr      [0m reload tmux config          [1;36m:        [0m command prompt
+     [1;36m?      [0m this help                   [1;36mC-?      [0m full raw key list
+
+   [90mpress  q  to close[0m

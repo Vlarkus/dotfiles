@@ -1,0 +1,5 @@
+name=skills
+title=skills — Claude skills (private)
+repo=https://github.com/Vlarkus/skills.git
+dir=$SRC_ROOT/skills
+link_dirs=$HOME/.claude/skills

@@ -1,0 +1,6 @@
+name=sv
+title=sv — server control panel, power modes, screen control
+repo=https://github.com/Vlarkus/sv.git
+dir=$SRC_ROOT/sv
+needs=node
+root_install=./install.sh

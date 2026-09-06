@@ -4,21 +4,34 @@
 # Safe to re-run. Anything it would overwrite is moved to ~/.dotfiles-backup/<timestamp>/
 # first, so this can never silently eat an existing config.
 #
+#   ./install.sh          pick what to install, from a menu
+#   ./install.sh all      every config group, no menu
 #   ./install.sh core     bash + tmux + LazyVim only   <- the stuff that matters
-#   ./install.sh          everything (adds alacritty, claude, dictation configs)
+#   ./install.sh tools    just the tool repos (sv, cl, dictate, skills)
+#   ./install.sh --list   show every group and tool, change nothing
 #   ./install.sh --dry    show what it would do, change nothing
 #
-# Then: ./bootstrap.sh  (installs tmux/nvim/deps). Extras are opt-in there too.
+# Config groups live here. Tools live in their own repos and are cloned on
+# demand — see spokes.d/. Then: ./bootstrap.sh for packages.
 set -uo pipefail
 
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DRY=0; CORE=0
+. "$D/lib/tui.sh"
+. "$D/lib/spoke.sh"
+
+DRY=0; CORE=0; MODE=menu
 for a in "$@"; do
   case "$a" in
-    --dry) DRY=1 ;;
-    core)  CORE=1 ;;
+    --dry)  DRY=1 ;;
+    core)   CORE=1; MODE=all ;;
+    all)    MODE=all ;;
+    tools)  MODE=tools ;;
+    --list) MODE=list ;;
+    menu)   MODE=menu ;;
   esac
 done
+# A pipe or a script gets the old behaviour; only an interactive run gets a menu.
+[ "$MODE" = menu ] && { tui_tty || MODE=all; }
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP="$HOME/.dotfiles-backup/$STAMP"
 n_link=0; n_same=0; n_back=0
@@ -45,24 +58,22 @@ link(){ # $1 = path inside repo   $2 = path relative to $HOME
   ln -sfn "$src" "$dst" && { echo "  ✓ $2"; n_link=$((n_link+1)); }
 }
 
+grp_shell(){
 echo "== shell =="
 link home/.bashrc                  .bashrc
 link home/.inputrc                 .inputrc
 link home/.bashrc.d/aliases.bashrc .bashrc.d/aliases.bashrc
+}
 
+grp_editor(){
 echo "== nvim (LazyVim) + tmux =="
 link config/nvim                .config/nvim
 link config/tmux/tmux.conf      .config/tmux/tmux.conf
 link config/tmux/cheatsheet.txt .config/tmux/cheatsheet.txt
+}
 
-if [ "$CORE" = 1 ]; then
-  echo
-  echo "core mode: bash + tmux + LazyVim only."
-  echo "(skipped alacritty / claude / dictation — run without 'core' to link those too)"
-  exit 0
-fi
-
-echo "== terminal / dictation =="
+grp_terminal(){
+echo "== terminal =="
 # Alacritty isn't on every machine, and isn't packaged the same everywhere.
 # Only link its config where the binary exists, so a box that uses the distro's
 # own terminal doesn't collect a config for something it can't run.
@@ -77,24 +88,86 @@ fi
 # alacritty.toml. Harmless on machines without Ptyxis — it's just a file.
 link config/ptyxis/Catppuccin-Mocha-Dotfiles.palette \
      .local/share/org.gnome.Ptyxis/palettes/Catppuccin-Mocha-Dotfiles.palette
+}
 
+grp_scripts(){
 echo "== scripts =="
 for s in console-font tmux-attach; do
   link "bin/$s" ".local/bin/$s"
 done
 [ "$DRY" = 0 ] && chmod +x "$D"/bin/* 2>/dev/null
+}
 
+grp_claude(){
 echo "== claude (configs only; credentials/sessions are never in this repo) =="
 link claude/settings.json          .claude/settings.json
 link claude/statusline.sh          .claude/statusline.sh
 link claude/hooks/claude-notify.sh .claude/hooks/claude-notify.sh
 link claude/hooks/gen-sounds.py    .claude/hooks/gen-sounds.py
 [ "$DRY" = 0 ] && chmod +x "$D"/claude/statusline.sh "$D"/claude/hooks/*.sh 2>/dev/null
+}
+
+# ── what exists ──────────────────────────────────────────────────────
+CONF_GROUPS=(shell:"shell — bashrc, aliases, inputrc"
+        editor:"editor — LazyVim + tmux"
+        terminal:"terminal — alacritty, ptyxis palette"
+        scripts:"scripts — console-font, tmux-attach"
+        claude:"claude — settings, statusline, hooks")
+
+if [ "$MODE" = list ]; then
+  echo "config groups:"
+  for g in "${CONF_GROUPS[@]}"; do printf "  %-10s %s\n" "${g%%:*}" "${g#*:}"; done
+  echo
+  echo "tools (own repos, cloned on demand):"
+  for f in $(spoke_list); do printf '  %-10s %s\n' "$(spoke_field "$f" name)" "$(spoke_field "$f" title)"; done
+  exit 0
+fi
+
+DID_CONF=1   # cleared when the run touched no config group
+run_groups(){ local g; for g in "$@"; do "grp_$g"; done; }
+run_spokes(){ local n f; for n in "$@"; do
+  f="$D/spokes.d/$n.spoke"; [ -e "$f" ] && spoke_install "$f"
+done; }
+
+case "$MODE" in
+  all)
+    if [ "$CORE" = 1 ]; then
+      run_groups shell editor
+      echo; echo "core mode: bash + tmux + LazyVim only."
+    else
+      run_groups shell editor terminal scripts claude
+    fi
+    ;;
+  tools)
+    DID_CONF=0
+    for f in $(spoke_list); do spoke_install "$f"; done
+    ;;
+  menu)
+    items=("--:configs — linked from this repo:0")
+    for g in "${CONF_GROUPS[@]}"; do items+=("${g%%:*}:${g#*:}:1"); done
+    items+=("--:tools — cloned from their own repos:0")
+    for f in $(spoke_list); do
+      n=$(spoke_field "$f" name)
+      # Pre-check a tool only if it is already here — a fresh machine should
+      # opt in to a 1.6 GB model download, not have it chosen for it.
+      d=$(spoke_path "$f" dir)
+      items+=("spoke_$n:$(spoke_field "$f" title):$([ -d "$d/.git" ] && echo 1 || echo 0)")
+    done
+    chosen=$(tui_pick "dotfiles — choose what to install" "${items[@]}") || { echo "cancelled"; exit 0; }
+    [ -z "$chosen" ] && { echo "nothing selected"; exit 0; }
+    gsel=(); ssel=()
+    for c in $chosen; do
+      case "$c" in spoke_*) ssel+=("${c#spoke_}") ;; *) gsel+=("$c") ;; esac
+    done
+    [ ${#gsel[@]} -gt 0 ] && run_groups "${gsel[@]}" || DID_CONF=0
+    [ ${#ssel[@]} -gt 0 ] && run_spokes "${ssel[@]}"
+    ;;
+esac
 
 echo
 if [ "$DRY" = 1 ]; then
   echo "dry run — nothing changed."
-else
+elif [ "$DID_CONF" = 1 ]; then
   echo "linked: $n_link   already ok: $n_same   backed up: $n_back"
   [ "$n_back" -gt 0 ] && echo "backups -> $BACKUP"
   cat <<'EOF'

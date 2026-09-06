@@ -1,0 +1,5 @@
+name=dictate
+title=dictate — push-to-talk speech to text
+repo=https://github.com/Vlarkus/dictate.git
+dir=$SRC_ROOT/dictate
+root_install=./install.sh

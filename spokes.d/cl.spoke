@@ -1,0 +1,5 @@
+name=cl
+title=cl — Claude Code launcher
+repo=https://github.com/Vlarkus/claude-launcher.git
+dir=$SRC_ROOT/claude-launcher
+needs=node

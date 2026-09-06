@@ -1,23 +1,62 @@
 # dotfiles
 
-bash, LazyVim, tmux, Alacritty and Claude Code
-pipeline. Built on Fedora + KDE Plasma (Wayland); `bootstrap.sh` also supports
-**Ubuntu/Debian**.
+The **hub**: one repo to configure a Linux machine. It carries the basic configs
+— bash, LazyVim, tmux, Alacritty, Claude Code — and knows how to fetch the tools,
+which live in repos of their own. Built on Fedora + KDE Plasma (Wayland);
+`bootstrap.sh` also supports **Ubuntu/Debian**.
 
-Files live here and are **symlinked** into `$HOME`, so editing the real config
+Configs live here and are **symlinked** into `$HOME`, so editing the real config
 edits the repo — just `git add -p && git commit`.
 
-## New machine — the short version
+```
+        dotfiles  ──  install.sh  ──┬── configs   symlinked from this repo
+         (hub)                      │
+                                    └── spokes    cloned from their own repos
+                                        sv · cl · dictate · skills
+```
 
-Bash + tmux + LazyVim, nothing else. Works on **Fedora** and **Ubuntu/Debian**:
+## New machine
 
 ```bash
 git clone <this-repo> ~/dotfiles
 cd ~/dotfiles
-./install.sh core       # symlink bashrc/aliases, tmux, nvim
+./install.sh            # menu: tick the configs and tools you want
 ./bootstrap.sh          # git, tmux, neovim, ripgrep/fd/fzf, lazygit, fastfetch + TPM
 exec bash
 ```
+
+`./install.sh` with no arguments opens a menu — `j`/`k` to move, `space` to
+toggle, `enter` to install. It is pure bash on purpose: this is the script that
+installs Node, so it cannot need Node to draw itself. Run it without a terminal
+(a pipe, CI) and it takes the defaults instead of hanging.
+
+Non-interactive forms:
+
+| | |
+|---|---|
+| `./install.sh core` | bash + tmux + LazyVim, nothing else |
+| `./install.sh all` | every config group |
+| `./install.sh tools` | just the spokes |
+| `./install.sh --list` | everything available, from disk |
+| `./install.sh --dry` | full run, changes nothing |
+
+## Spokes — the tools
+
+Each tool is its own repo. `spokes.d/*.spoke` is only the hub's note of where to
+find it; the contract is the one they already satisfied — **an `install.sh` at
+the root that accepts `--check`**. The hub clones it, fast-forwards it if it is
+already there (never a reset — local edits fail loudly instead of vanishing),
+runs the installer, and prints that `--check` back to you as the confirmation.
+
+| Spoke | What |
+|---|---|
+| [`sv`](https://github.com/Vlarkus/sv) | server control panel — power modes, screen, services |
+| [`cl`](https://github.com/Vlarkus/claude-launcher) | Claude Code launcher TUI |
+| [`dictate`](https://github.com/Vlarkus/dictate) | push-to-talk speech to text |
+| `skills` | Claude skills (private) |
+
+Anything needing root prints the `sudo` line rather than running it, so the menu
+never holds a password prompt. Adding a spoke is adding a file to `spokes.d/`.
 
 `bootstrap.sh` detects the distro and papers over the differences:
 
@@ -45,11 +84,10 @@ Then:
 
 ## Full machine rebuild
 
-Only if you want the rest (alacritty, Claude Code setup, dictation, ly, KDE tweaks):
-
 ```bash
-./install.sh            # symlink everything
-./bootstrap.sh --list   # see all sections
+./install.sh all        # every config group
+./install.sh tools      # every spoke
+./bootstrap.sh --list   # see all package sections
 ./bootstrap.sh pkgs console kde
 ./bootstrap.sh ly       # swap the login manager for the ly TUI
 ```
@@ -75,9 +113,8 @@ history, caches, tmux plugins, nvim plugin binaries, and `uv`/`uvx`/`claude`
 
 ## Custom bits worth knowing
 
-- **`cl`** — Claude Code launcher TUI. Lives in its own repo now
-  (github.com/Vlarkus/claude-launcher); clone it and run `./install.sh` there.
-  Deliberately *not* aliased here, so nothing shadows its shim.
+- **`cl`** — Claude Code launcher TUI, installed as a spoke. Deliberately *not*
+  aliased here, so nothing shadows its shim on `PATH`.
 - **`cf`** — console-font picker. This panel is 4K/15.6" (~282 DPI) so the stock
   8×16 TTY font is unreadable; `vconsole.conf` sets `latarcyrheb-sun32`.
 - **Claude notifications** — green = finished, orange = needs your input
@@ -89,10 +126,13 @@ history, caches, tmux plugins, nvim plugin binaries, and `uv`/`uvx`/`claude`
 - Log into `gh` (`gh auth login`) and Claude Code (`claude`).
 - Install JetBrainsMono Nerd Font if the terminal shows tofu.
 
-## Dictation moved out
+## Layout
 
-Push-to-talk speech-to-text now lives in its own repo, with the keyd remap, the
-ydotool plumbing and the whisper.cpp build together instead of scattered across
-three directories here:
-
-    github.com/Vlarkus/dictate
+```
+install.sh        menu + dispatch
+bootstrap.sh      packages, fonts, KDE, ly
+lib/tui.sh        the menu renderer (pure bash)
+lib/spoke.sh      clone / update / install a spoke
+spokes.d/*.spoke  where each tool lives
+home/ config/ bin/ claude/ system/    the configs themselves
+```

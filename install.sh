@@ -73,14 +73,13 @@ else
   echo "  skip (alacritty not installed): .config/alacritty/alacritty.toml"
   echo "    -> ALACRITTY=1 ./install.sh   to link it anyway"
 fi
-link config/dictate/config           .config/dictate/config
 # Ptyxis (GNOME/Ubuntu default terminal): same Catppuccin Mocha colours as
 # alacritty.toml. Harmless on machines without Ptyxis — it's just a file.
 link config/ptyxis/Catppuccin-Mocha-Dotfiles.palette \
      .local/share/org.gnome.Ptyxis/palettes/Catppuccin-Mocha-Dotfiles.palette
 
 echo "== scripts =="
-for s in console-font dictate-settings dictate-toggle tmux-attach; do
+for s in console-font tmux-attach; do
   link "bin/$s" ".local/bin/$s"
 done
 [ "$DRY" = 0 ] && chmod +x "$D"/bin/* 2>/dev/null
@@ -101,7 +100,7 @@ else
   cat <<'EOF'
 
 Next:
-  1. ./bootstrap.sh              # packages + keyd + ydotoold + fonts + KDE
+  1. ./bootstrap.sh              # packages + fonts + KDE
   2. exec bash                   # reload shell
   3. nvim                        # LazyVim installs plugins from lazy-lock.json
   4. tmux                        # resurrect/continuum load automatically

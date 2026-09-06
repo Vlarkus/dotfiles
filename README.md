@@ -1,6 +1,6 @@
 # dotfiles
 
-bash, LazyVim, tmux, Alacritty, Claude Code, and a local whisper.cpp dictation
+bash, LazyVim, tmux, Alacritty and Claude Code
 pipeline. Built on Fedora + KDE Plasma (Wayland); `bootstrap.sh` also supports
 **Ubuntu/Debian**.
 
@@ -32,7 +32,6 @@ exec bash
 | console font | `/etc/vconsole.conf` | `/etc/default/console-setup` + `setupcon` |
 | Caps→Ctrl | KDE `kxkbrc` | GNOME `gsettings` + `/etc/default/keyboard` for the TTY |
 | terminal | Alacritty | Alacritty, or Ptyxis (GNOME default since 25.10) — same palette either way |
-| `keyd` | in repo | not packaged → built from source |
 | `ly` | in repo | not packaged → skipped |
 
 The PPA fallbacks are still there and still correct for older releases — they just
@@ -51,8 +50,7 @@ Only if you want the rest (alacritty, Claude Code setup, dictation, ly, KDE twea
 ```bash
 ./install.sh            # symlink everything
 ./bootstrap.sh --list   # see all sections
-./bootstrap.sh pkgs keyd ydotool console kde
-./bootstrap.sh whisper  # build whisper.cpp + models (slow)
+./bootstrap.sh pkgs console kde
 ./bootstrap.sh ly       # swap the login manager for the ly TUI
 ```
 
@@ -67,10 +65,9 @@ Only if you want the rest (alacritty, Claude Code setup, dictation, ly, KDE twea
 | `config/tmux/` | `~/.config/tmux/` | tmux.conf (prefix `C-a`) + cheatsheet (`prefix ?`) |
 | `config/alacritty/` | `~/.config/alacritty/` | terminal (JetBrainsMono NF, Catppuccin) |
 | `config/ptyxis/` | `~/.local/share/org.gnome.Ptyxis/palettes/` | same Catppuccin Mocha colours for GNOME's Ptyxis (`bootstrap.sh kde` selects it) |
-| `config/dictate/config` | `~/.config/dictate/` | whisper model / typing speed |
-| `bin/` | `~/.local/bin/` | `console-font` `dictate-*` `tmux-attach` |
+| `bin/` | `~/.local/bin/` | `console-font` `tmux-attach` |
 | `claude/` | `~/.claude/` | settings, statusline, notification hooks |
-| `system/` | (reference) | keyd, ydotoold, vconsole — applied by `bootstrap.sh` |
+| `system/` | (reference) | vconsole — applied by `bootstrap.sh` |
 
 **Not in this repo, by design:** `~/.claude/.credentials.json`, session/project
 history, caches, tmux plugins, nvim plugin binaries, and `uv`/`uvx`/`claude`
@@ -83,14 +80,19 @@ history, caches, tmux plugins, nvim plugin binaries, and `uv`/`uvx`/`claude`
   Deliberately *not* aliased here, so nothing shadows its shim.
 - **`cf`** — console-font picker. This panel is 4K/15.6" (~282 DPI) so the stock
   8×16 TTY font is unreadable; `vconsole.conf` sets `latarcyrheb-sun32`.
-- **Dictation** — Right Ctrl (remapped to F23 by keyd) toggles `dictate-toggle`:
-  records → whisper.cpp → types via ydotool. Tune with `ds`.
 - **Claude notifications** — green = finished, orange = needs your input
   (fires when Claude's last message is a question), red = failed. The 60s
   "idle" ping is deliberately suppressed.
 
 ## Manual steps bootstrap can't do
 
-- Bind **F23 → `dictate-toggle`** in System Settings → Keyboard → Shortcuts.
 - Log into `gh` (`gh auth login`) and Claude Code (`claude`).
 - Install JetBrainsMono Nerd Font if the terminal shows tofu.
+
+## Dictation moved out
+
+Push-to-talk speech-to-text now lives in its own repo, with the keyd remap, the
+ydotool plumbing and the whisper.cpp build together instead of scattered across
+three directories here:
+
+    github.com/Vlarkus/dictate

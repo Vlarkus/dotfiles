@@ -5,11 +5,14 @@
 # Sections are independent and idempotent.
 #
 #   ./bootstrap.sh                  # 'core' only: bash + tmux + LazyVim
-#   ./bootstrap.sh pkgs keyd kde    # pick specific sections
+#   ./bootstrap.sh pkgs console kde # pick specific sections
 #   ./bootstrap.sh --list           # show every section
 #
 # Default is deliberately just 'core'. The machine-rebuild sections (dictation,
-# keyd, console font, KDE tweaks, ly, whisper) are all opt-in.
+# console font, KDE tweaks, ly) are all opt-in.
+#
+# Dictation — keyd, ydotool and whisper.cpp — moved to its own repo:
+#   github.com/Vlarkus/dictate
 set -uo pipefail
 
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,9 +52,8 @@ ppa(){
 CORE_PKGS_fedora=(git tmux ripgrep fd-find fzf)
 CORE_PKGS_debian=(git tmux ripgrep fd-find fzf curl)
 
-EXTRA_PKGS_fedora=(gh alacritty jq keyd ydotool ffmpeg-free gcc-c++ cmake make python3 terminus-fonts-console)
-EXTRA_PKGS_debian=(gh alacritty jq        ydotool ffmpeg      g++     cmake make python3 console-setup)
-# note: keyd is NOT packaged for ubuntu/debian — see sec_keyd
+EXTRA_PKGS_fedora=(gh alacritty jq ffmpeg-free gcc-c++ cmake make python3 terminus-fonts-console)
+EXTRA_PKGS_debian=(gh alacritty jq                ffmpeg      g++     cmake make python3 console-setup)
 
 # ── neovim: LazyVim needs >= 0.11.2, apt is frequently older ─────────────────
 NVIM_MIN=0.11.2
@@ -186,48 +188,6 @@ sec_pkgs(){
   pm_refresh
   local -n arr="EXTRA_PKGS_$FAMILY"
   pm_install "${arr[@]}" && ok "extra packages"
-  [ "$FAMILY" = debian ] && note "keyd is not packaged on ubuntu/debian — run: ./bootstrap.sh keyd"
-}
-
-sec_keyd(){
-  say "keyd (Right Ctrl -> F23 for the dictation hotkey)"
-  if ! have keyd; then
-    case "$FAMILY" in
-      fedora) pm_install keyd ;;
-      debian)
-        note "keyd isn't in apt — building from source"
-        pm_install build-essential git || return 1
-        local s=/tmp/keyd-src; rm -rf "$s"
-        git clone -q --depth=1 https://github.com/rvaiya/keyd "$s" || return 1
-        make -C "$s" >/dev/null && sudo make -C "$s" install >/dev/null || { bad "keyd build failed"; return 1; }
-        ;;
-    esac
-  fi
-  sudo mkdir -p /etc/keyd
-  sudo cp "$D/system/keyd-default.conf" /etc/keyd/default.conf
-  sudo systemctl enable --now keyd && ok "keyd enabled"
-  sudo keyd reload 2>/dev/null && ok "keyd reloaded"
-}
-
-sec_ydotool(){
-  say "ydotoold (types dictated text)"
-  have ydotoold || pm_install ydotool
-  # the stored unit hardcodes uid 1000 — regenerate for THIS machine's user
-  sudo tee /etc/systemd/system/ydotoold.service >/dev/null <<EOF
-[Unit]
-Description=ydotoold input daemon (root, user-owned socket)
-
-[Service]
-ExecStart=$(command -v ydotoold || echo /usr/bin/ydotoold) --socket-path=/run/ydotoold/socket --socket-own=$(id -u):$(id -g)
-RuntimeDirectory=ydotoold
-RuntimeDirectoryMode=0755
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-  sudo systemctl daemon-reload
-  sudo systemctl enable --now ydotoold && ok "ydotoold enabled (socket owned by $(id -u):$(id -g))"
 }
 
 sec_console(){
@@ -298,29 +258,6 @@ sec_kde(){
     fi
   fi
 
-  note "dictation hotkey (F23) must be bound by hand:"
-  note "  KDE:   System Settings > Keyboard > Shortcuts > custom > command: dictate-toggle"
-  note "  GNOME: Settings > Keyboard > Custom Shortcuts > command: dictate-toggle"
-}
-
-sec_whisper(){
-  say "whisper.cpp (local dictation engine)"
-  case "$FAMILY" in
-    fedora) pm_install gcc-c++ cmake make git ;;
-    debian) pm_install build-essential cmake git ;;
-  esac
-  local w="$HOME/.local/share/whisper.cpp"
-  if [ -d "$w/.git" ]; then ok "already cloned"; else
-    git clone -q https://github.com/ggml-org/whisper.cpp "$w" || return 1
-  fi
-  cmake -S "$w" -B "$w/build" -DCMAKE_BUILD_TYPE=Release >/dev/null \
-    && cmake --build "$w/build" -j"$(nproc)" --config Release >/dev/null \
-    && ok "built"
-  for m in tiny.en base.en small.en; do
-    [ -f "$w/models/ggml-$m.bin" ] || (cd "$w" && bash ./models/download-ggml-model.sh "$m" >/dev/null 2>&1 && ok "model $m")
-  done
-  mkdir -p "$HOME/.local/bin"
-  ln -sfn "$w/build/bin/whisper-cli" "$HOME/.local/bin/whisper-cli" && ok "whisper-cli linked"
 }
 
 sec_ly(){
@@ -338,7 +275,7 @@ sec_ly(){
 }
 
 DEFAULT=(core)
-ALL=(core pkgs tpm keyd ydotool console kde whisper ly)
+ALL=(core pkgs tpm console kde ly)
 
 if [ "${1:-}" = "--list" ]; then
   cat <<EOF
@@ -348,13 +285,10 @@ default:
   core      bash + tmux + LazyVim  (packages + tmux plugin manager)   <- runs if no args
 
 full machine:
-  pkgs      every package (alacritty, gh, jq, dictation, build deps)
-  keyd      Right Ctrl -> F23 remap        (built from source on ubuntu)
-  ydotool   ydotoold service (dictation types text)
+  pkgs      every package (alacritty, gh, jq, build deps)
   console   big TTY console font (HiDPI)
   kde       Caps Lock -> Ctrl (KDE + GNOME + TTY), Ptyxis palette,
             disable KDE mouse edge barrier
-  whisper   build whisper.cpp + models     (compiles, slow)
   ly        ly TUI login manager           (fedora only)
 
   ./bootstrap.sh                 # core only
@@ -366,8 +300,8 @@ fi
 RUN=("$@"); [ $# -eq 0 ] && RUN=("${DEFAULT[@]}")
 for s in "${RUN[@]}"; do
   case "$s" in
-    core) sec_core ;; pkgs) sec_pkgs ;; tpm) sec_tpm ;; keyd) sec_keyd ;; ydotool) sec_ydotool ;;
-    console) sec_console ;; kde) sec_kde ;; whisper) sec_whisper ;; ly) sec_ly ;;
+    core) sec_core ;; pkgs) sec_pkgs ;; tpm) sec_tpm ;;
+    console) sec_console ;; kde) sec_kde ;; ly) sec_ly ;;
     *) note "unknown section: $s" ;;
   esac
 done

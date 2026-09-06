@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/vlarkus/.claude/hooks/claude-notify.sh attention"
+            "command": "$HOME/.claude/hooks/claude-notify.sh attention"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/vlarkus/.claude/hooks/claude-notify.sh done"
+            "command": "$HOME/.claude/hooks/claude-notify.sh done"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/vlarkus/.claude/hooks/claude-notify.sh fail"
+            "command": "$HOME/.claude/hooks/claude-notify.sh fail"
           }
         ]
       }
@@ -34,7 +34,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "/home/vlarkus/.claude/statusline.sh"
+    "command": "$HOME/.claude/statusline.sh"
   },
   "effortLevel": "xhigh",
   "voice": {

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # console-font — pick the Linux virtual-console font (used by ly + every TTY).
 #
-# Why: this panel is 3840x2160 on 15.6" (~282 DPI). The stock 8x16 console font
-# renders ~1.4mm tall = unreadable. A 32px-tall font doubles that.
+# Why: on a high-DPI panel the stock 8x16 console font renders ~1.4mm tall =
+# unreadable. A 32px-tall font doubles that. The panel is detected, not assumed
+# — this was written for a 3840x2160 15.6" (~282 DPI) laptop, but the same
+# script is useful on any screen dense enough to make the default too small.
 #
 #   [Enter] preview live  — only works ON a real TTY (Ctrl+Alt+F3), because
 #                           `setfont` talks to a virtual console, not a pty.
@@ -14,7 +16,34 @@ set -uo pipefail
 export PATH="/usr/bin:/usr/sbin:/usr/local/bin:$PATH"
 
 VCONF=/etc/vconsole.conf
-FONTDIR=/usr/lib/kbd/consolefonts        # Fedora's location (not /usr/share)
+# Fedora keeps console fonts in /usr/lib/kbd, Debian/Ubuntu in /usr/share.
+FONTDIR=""
+for d in /usr/lib/kbd/consolefonts /usr/share/consolefonts /usr/share/kbd/consolefonts; do
+  [ -d "$d" ] && { FONTDIR="$d"; break; }
+done
+: "${FONTDIR:=/usr/lib/kbd/consolefonts}"
+
+# Panel: resolution from the connected DRM connector, physical size from its
+# EDID (bytes 21/22 are width/height in cm). Both are absent on a VM or over
+# serial, in which case the header just says so instead of inventing numbers.
+panel(){
+  local c mode cm_w px_w px_h
+  for c in /sys/class/drm/card*-*; do
+    [ "$(cat "$c/status" 2>/dev/null)" = connected ] || continue
+    mode=$(head -1 "$c/modes" 2>/dev/null) || continue
+    [ -n "$mode" ] || continue
+    px_w=${mode%x*}; px_h=${mode#*x}
+    cm_w=$(od -An -tu1 -j21 -N1 "$c/edid" 2>/dev/null | tr -d ' ')
+    if [ -n "${cm_w:-}" ] && [ "${cm_w:-0}" -gt 0 ] 2>/dev/null; then
+      printf '%sx%s (~%d DPI)' "$px_w" "$px_h" $(( px_w * 254 / (cm_w * 100) ))
+    else
+      printf '%sx%s' "$px_w" "$px_h"
+    fi
+    return
+  done
+  printf 'unknown'
+}
+PANEL=$(panel)
 
 if [ "$(id -u)" -ne 0 ]; then exec sudo -- "$0" "$@"; fi
 
@@ -64,13 +93,20 @@ save(){
     printf 'FONT="%s"\n' "$f" >> "$VCONF"
   fi
   MSG="${OK}saved FONT=\"$f\" — ly + all TTYs use it from next boot${R}"
+  # Debian/Ubuntu read /etc/default/console-setup, not vconsole.conf, unless
+  # systemd-vconsole-setup is what actually runs. Say so rather than let the
+  # save look like it took effect when it will not.
+  [ -f /etc/default/console-setup ] && \
+    MSG="$MSG
+  ${YEL}note: this system also has /etc/default/console-setup — if the font
+  does not change at boot, set FONTFACE/FONTSIZE there and run setupcon${R}"
 }
 
 MSG=""
 enter
 while true; do
   L=( "" "  ${HI}Console font${R}  ${DIM}— used by ly and every TTY${R}" ""
-      "  ${DIM}saved:${R} ${HI}$(cur_font)${R}   ${DIM}screen:${R} 3840x2160 (~282 DPI)" "" )
+      "  ${DIM}saved:${R} ${HI}$(cur_font)${R}   ${DIM}screen:${R} $PANEL" "" )
   for i in "${!FONTS[@]}"; do
     IFS='|' read -r name size note <<<"${FONTS[$i]}"
     miss=""; exists "$name" || miss=" ${RED}(not installed)${R}"

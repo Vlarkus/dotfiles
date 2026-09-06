@@ -101,7 +101,7 @@ Then:
 | `home/.inputrc` | `~/.inputrc` | cmd-style Tab completion cycling |
 | `config/nvim/` | `~/.config/nvim` | LazyVim |
 | `config/tmux/` | `~/.config/tmux/` | tmux.conf (prefix `C-a`) + cheatsheet (`prefix ?`) |
-| `config/alacritty/` | `~/.config/alacritty/` | terminal (JetBrainsMono NF, Catppuccin) |
+| `config/alacritty/alacritty.toml.in` | `~/.config/alacritty/alacritty.toml` | terminal (JetBrainsMono NF, Catppuccin) — **rendered, not linked**: TOML has no `$HOME`, so `@HOME@` is substituted at install |
 | `config/ptyxis/` | `~/.local/share/org.gnome.Ptyxis/palettes/` | same Catppuccin Mocha colours for GNOME's Ptyxis (`bootstrap.sh kde` selects it) |
 | `bin/` | `~/.local/bin/` | `console-font` `tmux-attach` |
 | `claude/` | `~/.claude/` | settings, statusline, notification hooks |
@@ -115,8 +115,10 @@ history, caches, tmux plugins, nvim plugin binaries, and `uv`/`uvx`/`claude`
 
 - **`cl`** — Claude Code launcher TUI, installed as a spoke. Deliberately *not*
   aliased here, so nothing shadows its shim on `PATH`.
-- **`cf`** — console-font picker. This panel is 4K/15.6" (~282 DPI) so the stock
-  8×16 TTY font is unreadable; `vconsole.conf` sets `latarcyrheb-sun32`.
+- **`cf`** — console-font picker. Detects the panel (resolution from DRM,
+  physical size from EDID) and the distro's font directory. This laptop is
+  4K/15.6" (~286 DPI), where the stock 8×16 TTY font is unreadable, so
+  `vconsole.conf` sets `latarcyrheb-sun32`.
 - **Claude notifications** — green = finished, orange = needs your input
   (fires when Claude's last message is a question), red = failed. The 60s
   "idle" ping is deliberately suppressed.

@@ -8,7 +8,7 @@ TERM = "xterm-256color"
 # own independent session (good for multi-monitor). See ~/.local/bin/tmux-attach
 # Run `alacritty -e $SHELL` if you ever want a plain shell without tmux.
 [terminal.shell]
-program = "/home/vlarkus/.local/bin/tmux-attach"
+program = "@HOME@/.local/bin/tmux-attach"
 
 [window]
 padding = { x = 10, y = 10 }

@@ -93,5 +93,5 @@ if [ -d ~/.bashrc.d ]; then
 fi
 unset rc
 
-# opencode
-export PATH=/home/vlarkus/.opencode/bin:$PATH
+# opencode — only if installed, so this doesn't add a dead dir on every machine
+[ -d "$HOME/.opencode/bin" ] && export PATH="$HOME/.opencode/bin:$PATH"

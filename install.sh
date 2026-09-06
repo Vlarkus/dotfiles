@@ -19,7 +19,7 @@ D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$D/lib/tui.sh"
 . "$D/lib/spoke.sh"
 
-DRY=0; CORE=0; MODE=menu
+DRY=0; CORE=0; MODE=menu; PICK=()
 for a in "$@"; do
   case "$a" in
     --dry)  DRY=1 ;;
@@ -28,6 +28,9 @@ for a in "$@"; do
     tools)  MODE=tools ;;
     --list) MODE=list ;;
     menu)   MODE=menu ;;
+    # A bare name selects just that group or spoke: `./install.sh editor sv`
+    -*)     echo "unknown option: $a  (try --list)" >&2; exit 2 ;;
+    *)      PICK+=("$a"); MODE=pick ;;
   esac
 done
 # A pipe or a script gets the old behaviour; only an interactive run gets a menu.
@@ -58,6 +61,32 @@ link(){ # $1 = path inside repo   $2 = path relative to $HOME
   ln -sfn "$src" "$dst" && { echo "  ✓ $2"; n_link=$((n_link+1)); }
 }
 
+render(){ # $1 = template inside repo   $2 = path relative to $HOME
+  # For formats with no variable expansion of their own. TOML is the reason
+  # this exists: alacritty.toml cannot say $HOME, so the path must be baked in.
+  local src="$D/$1" dst="$HOME/$2" tmp
+  if [ ! -e "$src" ]; then echo "  skip (not in repo): $1"; return; fi
+  tmp=$(mktemp)
+  sed -e "s|@HOME@|$HOME|g" -e "s|@USER@|$USER|g" "$src" > "$tmp"
+
+  if [ -f "$dst" ] && cmp -s "$tmp" "$dst"; then
+    echo "  = $2"; n_same=$((n_same+1)); rm -f "$tmp"; return
+  fi
+  if [ "$DRY" = 1 ]; then
+    [ -e "$dst" ] && echo "  would back up + render: $2" || echo "  would render: $2"
+    rm -f "$tmp"; return
+  fi
+
+  mkdir -p "$(dirname "$dst")"
+  # A rendered file is a copy, not a symlink — so back up whatever is there,
+  # including the symlink an older install.sh left behind.
+  if [ -e "$dst" ] || [ -L "$dst" ]; then
+    mkdir -p "$BACKUP/$(dirname "$2")"
+    mv "$dst" "$BACKUP/$2" && { echo "  backed up: $2"; n_back=$((n_back+1)); }
+  fi
+  mv "$tmp" "$dst" && chmod 644 "$dst" && { echo "  ✓ $2 (rendered)"; n_link=$((n_link+1)); }
+}
+
 grp_shell(){
 echo "== shell =="
 link home/.bashrc                  .bashrc
@@ -79,7 +108,7 @@ echo "== terminal =="
 # own terminal doesn't collect a config for something it can't run.
 # Force it on with:  ALACRITTY=1 ./install.sh   (e.g. installing it later)
 if [ "${ALACRITTY:-}" = 1 ] || command -v alacritty >/dev/null 2>&1; then
-  link config/alacritty/alacritty.toml .config/alacritty/alacritty.toml
+  render config/alacritty/alacritty.toml.in .config/alacritty/alacritty.toml
 else
   echo "  skip (alacritty not installed): .config/alacritty/alacritty.toml"
   echo "    -> ALACRITTY=1 ./install.sh   to link it anyway"
@@ -137,6 +166,16 @@ case "$MODE" in
     else
       run_groups shell editor terminal scripts claude
     fi
+    ;;
+  pick)
+    gsel=(); ssel=()
+    for c in "${PICK[@]}"; do
+      if [ "$(type -t "grp_$c")" = function ]; then gsel+=("$c")
+      elif [ -e "$D/spokes.d/$c.spoke" ]; then ssel+=("$c")
+      else echo "unknown: $c  (try --list)" >&2; exit 2; fi
+    done
+    [ ${#gsel[@]} -gt 0 ] && run_groups "${gsel[@]}" || DID_CONF=0
+    [ ${#ssel[@]} -gt 0 ] && run_spokes "${ssel[@]}"
     ;;
   tools)
     DID_CONF=0

@@ -274,36 +274,48 @@ sec_ly(){
   note "revert:  sudo systemctl disable ly@tty2.service && sudo systemctl enable <old-dm> -f"
 }
 
-DEFAULT=(core)
-ALL=(core pkgs tpm console kde ly)
+# ── the section list, written once ───────────────────────────────────────────
+# Order matters: it is the order --list prints and the order `all` runs in.
+# A section is a sec_* function plus one line here. Nothing else to update.
+SECTIONS=(
+  "core|bash + tmux + LazyVim  (packages + tmux plugin manager)|default"
+  "pkgs|every package (alacritty, gh, jq, build deps)|"
+  "tpm|tmux plugins only (resurrect, continuum, TPM)|"
+  "console|big TTY console font (HiDPI)|"
+  "kde|Caps Lock -> Ctrl (KDE + GNOME + TTY), Ptyxis palette, no edge barrier|"
+  "ly|ly TUI login manager|fedora only"
+)
+sec_names(){ local e; for e in "${SECTIONS[@]}"; do printf '%s\n' "${e%%|*}"; done; }
 
-if [ "${1:-}" = "--list" ]; then
-  cat <<EOF
-detected: ${ID:-?} ${VERSION_ID:-} (family: $FAMILY)
+# Every name here must have a function behind it, or a typo becomes a section
+# that silently does nothing.
+for _s in $(sec_names); do
+  [ "$(type -t "sec_$_s")" = function ] || { echo "bootstrap.sh: no sec_$_s()" >&2; exit 1; }
+done
+unset _s
 
-default:
-  core      bash + tmux + LazyVim  (packages + tmux plugin manager)   <- runs if no args
-
-full machine:
-  pkgs      every package (alacritty, gh, jq, build deps)
-  console   big TTY console font (HiDPI)
-  kde       Caps Lock -> Ctrl (KDE + GNOME + TTY), Ptyxis palette,
-            disable KDE mouse edge barrier
-  ly        ly TUI login manager           (fedora only)
+if [ "${1:-}" = "--list" ] || [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+  echo "detected: ${ID:-?} ${VERSION_ID:-} (family: $FAMILY)"
+  echo
+  for e in "${SECTIONS[@]}"; do
+    IFS='|' read -r n d tag <<<"$e"
+    printf '  %-9s %s%s\n' "$n" "$d" "${tag:+   ($tag)}"
+  done
+  cat <<'EOF'
 
   ./bootstrap.sh                 # core only
   ./bootstrap.sh pkgs kde        # pick sections
+  ./bootstrap.sh all             # every section
 EOF
   exit 0
 fi
 
-RUN=("$@"); [ $# -eq 0 ] && RUN=("${DEFAULT[@]}")
+RUN=("$@")
+[ $# -eq 0 ] && RUN=(core)
+[ "${1:-}" = all ] && RUN=($(sec_names))
 for s in "${RUN[@]}"; do
-  case "$s" in
-    core) sec_core ;; pkgs) sec_pkgs ;; tpm) sec_tpm ;;
-    console) sec_console ;; kde) sec_kde ;; ly) sec_ly ;;
-    *) note "unknown section: $s" ;;
-  esac
+  if [ "$(type -t "sec_$s")" = function ]; then "sec_$s"
+  else note "unknown section: $s   (try --list)"; fi
 done
 
 say "done"

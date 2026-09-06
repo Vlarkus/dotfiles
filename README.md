@@ -88,6 +88,7 @@ Then:
 ./install.sh all        # every config group
 ./install.sh tools      # every spoke
 ./bootstrap.sh --list   # see all package sections
+./bootstrap.sh all      # every section
 ./bootstrap.sh pkgs console kde
 ./bootstrap.sh ly       # swap the login manager for the ly TUI
 ```
@@ -103,7 +104,7 @@ Then:
 | `config/tmux/` | `~/.config/tmux/` | tmux.conf (prefix `C-a`) + cheatsheet (`prefix ?`) |
 | `config/alacritty/alacritty.toml.in` | `~/.config/alacritty/alacritty.toml` | terminal (JetBrainsMono NF, Catppuccin) — **rendered, not linked**: TOML has no `$HOME`, so `@HOME@` is substituted at install |
 | `config/ptyxis/` | `~/.local/share/org.gnome.Ptyxis/palettes/` | same Catppuccin Mocha colours for GNOME's Ptyxis (`bootstrap.sh kde` selects it) |
-| `bin/` | `~/.local/bin/` | `console-font` `tmux-attach` |
+| `bin/` | `~/.local/bin/` | small scripts — every file here is linked, so adding one is adding a file |
 | `claude/` | `~/.claude/` | settings, statusline, notification hooks |
 | `system/` | (reference) | vconsole — applied by `bootstrap.sh` |
 

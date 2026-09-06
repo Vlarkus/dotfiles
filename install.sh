@@ -121,8 +121,11 @@ link config/ptyxis/Catppuccin-Mocha-Dotfiles.palette \
 
 grp_scripts(){
 echo "== scripts =="
-for s in console-font tmux-attach; do
-  link "bin/$s" ".local/bin/$s"
+# Whatever is in bin/ — so adding a script is adding a file, not editing a list.
+local s
+for s in "$D"/bin/*; do
+  [ -f "$s" ] || continue
+  link "bin/$(basename "$s")" ".local/bin/$(basename "$s")"
 done
 [ "$DRY" = 0 ] && chmod +x "$D"/bin/* 2>/dev/null
 }
@@ -140,7 +143,7 @@ link claude/hooks/gen-sounds.py    .claude/hooks/gen-sounds.py
 CONF_GROUPS=(shell:"shell — bashrc, aliases, inputrc"
         editor:"editor — LazyVim + tmux"
         terminal:"terminal — alacritty, ptyxis palette"
-        scripts:"scripts — console-font, tmux-attach"
+        scripts:"scripts — everything in bin/"
         claude:"claude — settings, statusline, hooks")
 
 if [ "$MODE" = list ]; then

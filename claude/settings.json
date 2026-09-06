@@ -1,4 +1,5 @@
 {
+  "model": "opus[1m]",
   "hooks": {
     "Notification": [
       {
@@ -36,13 +37,13 @@
     "command": "/home/vlarkus/.claude/statusline.sh"
   },
   "effortLevel": "xhigh",
+  "voice": {
+    "enabled": true,
+    "mode": "hold"
+  },
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
-  "voiceEnabled": true,
-  "voice": {
-    "enabled": true,
-    "mode": "hold"
-  }
+  "voiceEnabled": true
 }
